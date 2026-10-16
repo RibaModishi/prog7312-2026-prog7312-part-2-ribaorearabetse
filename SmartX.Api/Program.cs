@@ -1,4 +1,7 @@
+using System.Text;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using SmartX.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,10 +14,30 @@ builder.Services.AddControllers()
 
 builder.Services.AddOpenApi();
 
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("Jwt:Key is not configured.");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
+    });
+builder.Services.AddAuthorization();
+
 // The gateway keeps the deployment tree and all accumulated telemetry in process, so the store
 // must be a singleton; a scoped registration would discard every registered sensor per request.
 builder.Services.AddSingleton<SmartXStore>();
 builder.Services.AddSingleton<AlertAggregationService>();
+builder.Services.AddSingleton<OperatorTokenService>();
 builder.Services.AddHostedService<SensorDisconnectWatcher>();
 builder.Services.AddHostedService<SensorTelemetrySimulator>();
 
@@ -36,6 +59,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

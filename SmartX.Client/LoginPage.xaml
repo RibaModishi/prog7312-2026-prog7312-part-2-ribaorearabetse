@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SmartX.Client.LoginPage"
+             Style="{StaticResource SmartXPage}"
+             Title="Operator Sign In"
+             Shell.NavBarIsVisible="False">
+
+    <ScrollView HorizontalOptions="Center" MaximumWidthRequest="680">
+        <VerticalStackLayout Padding="24,32,24,40" Spacing="24">
+
+            <VerticalStackLayout Spacing="8">
+                <Label Text="SMART-X" Style="{StaticResource SectionLabel}" />
+                <Label Text="Operator Sign In" Style="{StaticResource PageTitle}" />
+                <Label Style="{StaticResource PageSubtitle}"
+                       Text="The gateway only accepts authenticated operators. Sign in to register sensors, attach files, and watch the live dashboard." />
+            </VerticalStackLayout>
+
+            <Border Style="{StaticResource PillarCard}">
+                <VerticalStackLayout Spacing="16">
+
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Username" Style="{StaticResource FieldLabel}" />
+                        <Entry x:Name="UsernameEntry"
+                               Style="{StaticResource FormEntry}"
+                               Placeholder="operator" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Password" Style="{StaticResource FieldLabel}" />
+                        <Entry x:Name="PasswordEntry"
+                               Style="{StaticResource FormEntry}"
+                               IsPassword="True"
+                               Placeholder="SmartX-Demo!" />
+                    </VerticalStackLayout>
+
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <Button x:Name="SignInButton"
+                                Grid.Column="0"
+                                Style="{StaticResource PrimaryButton}"
+                                Text="Sign In"
+                                Clicked="OnSignInClicked" />
+                        <ActivityIndicator x:Name="SignInSpinner"
+                                           Grid.Column="1"
+                                           IsVisible="False"
+                                           IsRunning="False"
+                                           Color="{StaticResource SmartXAccent}"
+                                           VerticalOptions="Center" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border x:Name="FeedbackCard"
+                    Style="{StaticResource PillarCard}"
+                    IsVisible="False">
+                <Label x:Name="FeedbackLabel" Style="{StaticResource PageSubtitle}" />
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

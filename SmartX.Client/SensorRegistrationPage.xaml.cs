@@ -1,4 +1,5 @@
 using SmartX.Client.Services;
+using SmartX.Shared.Attachments;
 using SmartX.Shared.Contracts;
 using SmartX.Shared.Telemetry;
 
@@ -21,7 +22,7 @@ public partial class SensorRegistrationPage : ContentPage
     private static readonly FilePickerFileType AttachmentFileTypes = new(
         new Dictionary<DevicePlatform, IEnumerable<string>>
         {
-            [DevicePlatform.WinUI] = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".txt", ".log", ".json", ".xml", ".csv", ".yaml", ".yml", ".ini", ".cfg", ".conf"],
+            [DevicePlatform.WinUI] = [".png", ".jpg", ".jpeg", ".txt", ".log", ".json", ".csv"],
             [DevicePlatform.Android] = ["image/*", "text/*", "application/json", "application/xml"],
             [DevicePlatform.iOS] = ["public.image", "public.text", "public.json", "public.xml"],
             [DevicePlatform.MacCatalyst] = ["public.image", "public.text", "public.json", "public.xml"]
@@ -60,7 +61,7 @@ public partial class SensorRegistrationPage : ContentPage
         // Catching obviously incomplete input here keeps a pointless round trip off the wire; the
         // gateway still re-checks everything, so this is a convenience, not the real guard.
         var missing = new List<string>();
-        if (string.IsNullOrWhiteSpace(macAddress)) missing.Add("A MAC address or unique identifier is required.");
+        if (!SensorIdentity.IsValid(macAddress)) missing.Add(SensorIdentity.DescribeViolation(macAddress));
         if (string.IsNullOrWhiteSpace(facility)) missing.Add("A facility name is required.");
         if (string.IsNullOrWhiteSpace(zone)) missing.Add("A zone name is required.");
 
@@ -130,11 +131,13 @@ public partial class SensorRegistrationPage : ContentPage
             // A zero-byte file is a real thing to pick by accident — a screenshot that failed to
             // save looks identical in the picker. The gateway rejects it anyway, so this only
             // moves the answer forward to the moment of choosing.
-            if (await TryGetFileSizeAsync(picked) == 0)
+            var size = await TryGetFileSizeAsync(picked);
+            if (size is not null &&
+                !AttachmentRules.TryValidate(picked.FileName, picked.ContentType, size.Value, out var localError))
             {
                 _pendingFile = null;
                 PendingFileRow.IsVisible = false;
-                ShowFeedback("Nothing to upload", [$"'{picked.FileName}' is empty."], isSuccess: false);
+                ShowFeedback("File not accepted", [localError], isSuccess: false);
                 return;
             }
 
@@ -164,9 +167,14 @@ public partial class SensorRegistrationPage : ContentPage
 
             if (outcome.IsSuccess)
             {
+                LatestSummaryLabel.Text = outcome.Preview ?? $"Stored as {outcome.FileName}.";
+                LatestSummaryLabel.IsVisible = true;
                 ShowFeedback(
                     "Attachment uploaded",
-                    [$"'{_pendingFile.FileName}' was stored against {_attachmentSensorId} as {outcome.FileName}."],
+                    [
+                        $"'{_pendingFile.FileName}' was stored against {_attachmentSensorId} as {outcome.FileName}.",
+                        outcome.Preview ?? "The gateway read the file after saving it."
+                    ],
                     isSuccess: true);
 
                 // Clearing the pending file stops the same upload being fired twice while leaving
@@ -210,6 +218,8 @@ public partial class SensorRegistrationPage : ContentPage
         AttachmentTargetLabel.Text = $"Attaching to {sensorId}";
         PendingFileRow.IsVisible = false;
         PickedFileLabel.Text = string.Empty;
+        LatestSummaryLabel.IsVisible = false;
+        LatestSummaryLabel.Text = string.Empty;
         AttachmentCard.IsVisible = true;
     }
 

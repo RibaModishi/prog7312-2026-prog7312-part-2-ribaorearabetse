@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartX.Api.Services;
+using SmartX.Shared.Attachments;
 using SmartX.Shared.Contracts;
 using SmartX.Shared.Deployment;
 
@@ -12,6 +14,7 @@ namespace SmartX.Api.Controllers;
 /// caller so the dashboard never has to invent its own wording for a structural fault.
 /// </summary>
 [ApiController]
+[Authorize]
 [Route("api/sensors")]
 public class SensorsController(SmartXStore store, IWebHostEnvironment environment) : ControllerBase
 {
@@ -53,17 +56,12 @@ public class SensorsController(SmartXStore store, IWebHostEnvironment environmen
             return NotFound(new { error = $"Sensor '{sensorId}' is not registered." });
         }
 
-        if (file is null || file.Length == 0)
-        {
-            return BadRequest(new { error = "An attachment must contain at least one byte." });
-        }
-
         // Only the bare file name is kept, so a crafted name like "../../appsettings.json" cannot
         // escape the attachments folder.
-        var submittedName = Path.GetFileName(file.FileName);
-        if (string.IsNullOrWhiteSpace(submittedName))
+        var submittedName = Path.GetFileName(file?.FileName);
+        if (!AttachmentRules.TryValidate(submittedName, file?.ContentType, file?.Length ?? 0, out var error))
         {
-            return BadRequest(new { error = "An attachment must have a file name." });
+            return BadRequest(new { error });
         }
 
         var folder = Path.Combine(AttachmentsRoot(), SafeFolderName(sensorId));
@@ -72,12 +70,34 @@ public class SensorsController(SmartXStore store, IWebHostEnvironment environmen
         // MAC addresses and repeat uploads both collide easily, so each save is prefixed with the
         // capture time to keep earlier deployment photos intact.
         var savedName = $"{DateTime.UtcNow:yyyyMMddHHmmssfff}_{submittedName}";
+        var savedPath = Path.Combine(folder, savedName);
 
-        await using var destination = System.IO.File.Create(Path.Combine(folder, savedName));
-        await file.CopyToAsync(destination);
+        await using (var destination = System.IO.File.Create(savedPath))
+        {
+            await file!.CopyToAsync(destination);
+        }
 
-        return Ok(new { sensorId, savedName, sizeInBytes = file.Length });
+        var bytes = await System.IO.File.ReadAllBytesAsync(savedPath);
+        var summary = AttachmentSummariser.Summarise(savedName, bytes);
+        store.RememberAttachment(sensorId, summary);
+
+        return Ok(new
+        {
+            sensorId,
+            savedName,
+            sizeInBytes = summary.SizeInBytes,
+            kind = summary.Kind,
+            preview = summary.Preview,
+            lineCount = summary.LineCount,
+            fieldCount = summary.FieldCount
+        });
     }
+
+    [HttpGet("{sensorId}/attachments")]
+    public ActionResult<IReadOnlyList<AttachmentSummary>> GetAttachments(string sensorId) =>
+        store.TryGetSensor(sensorId, out _)
+            ? Ok(store.AttachmentsFor(sensorId))
+            : NotFound(new { error = $"Sensor '{sensorId}' is not registered." });
 
     private string AttachmentsRoot() =>
         Path.Combine(environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot"), "attachments");

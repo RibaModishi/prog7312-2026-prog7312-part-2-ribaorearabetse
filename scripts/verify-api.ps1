@@ -13,7 +13,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$BaseUrl = 'http://localhost:5199',
+    [string]$BaseUrl = 'http://localhost:5022',
     [switch]$KeepRunning,
     [switch]$SkipLoadTest
 )
@@ -22,6 +22,7 @@ $ErrorActionPreference = 'Stop'
 $script:Passed = 0
 $script:Failed = 0
 $script:ApiProcess = $null
+$script:Token = $null
 
 function Write-Section($text) {
     Write-Host ''
@@ -37,6 +38,10 @@ function Invoke-Api {
 
     $uri = "$BaseUrl$Path"
     $params = @{ Uri = $uri; Method = $Method; UseBasicParsing = $true; ErrorAction = 'Stop' }
+
+    if ($script:Token) {
+        $params.Headers = @{ Authorization = "Bearer $script:Token" }
+    }
 
     if ($null -ne $Body) {
         # -InputObject rather than the pipeline: piping an empty array sends zero objects and
@@ -100,7 +105,7 @@ function Start-Api {
     for ($attempt = 1; $attempt -le 40; $attempt++) {
         Start-Sleep -Seconds 2
         try {
-            Invoke-WebRequest -Uri "$BaseUrl/api/sensors" -UseBasicParsing -TimeoutSec 3 | Out-Null
+            Invoke-WebRequest -Uri "$BaseUrl/api/health" -UseBasicParsing -TimeoutSec 3 | Out-Null
             Write-Host "API is up." -ForegroundColor Yellow
             return
         }
@@ -122,7 +127,7 @@ function Stop-Api {
 
 $alreadyRunning = $false
 try {
-    Invoke-WebRequest -Uri "$BaseUrl/api/sensors" -UseBasicParsing -TimeoutSec 3 | Out-Null
+    Invoke-WebRequest -Uri "$BaseUrl/api/health" -UseBasicParsing -TimeoutSec 3 | Out-Null
     $alreadyRunning = $true
     Write-Host "Using the API already running at $BaseUrl." -ForegroundColor Yellow
 }
@@ -135,9 +140,35 @@ $powerId = 'A4:CF:12:01:BB:02'
 $actuatorId = 'A4:CF:12:01:CC:03'
 
 try {
+    # --- authentication -----------------------------------------------------------------------
+
+    Write-Section 'Operator authentication'
+
+    $denied = Invoke-Api POST '/api/sensors' @{
+        macAddress = $environmentalId; facilityName = 'Facility A'
+        zoneName = 'Zone 1'; category = 'Environmental'
+    }
+    Assert-Status 'Reject registration without a token' $denied 401
+
+    $badLogin = Invoke-Api POST '/api/auth/login' @{ username = 'operator'; password = 'wrong' }
+    Assert-Status 'Reject a bad password' $badLogin 401
+
+    $login = Invoke-Api POST '/api/auth/login' @{ username = 'operator'; password = 'SmartX-Demo!' }
+    Assert-Status 'Issue an operator token' $login 200
+    $script:Token = ($login.Content | ConvertFrom-Json).token
+    Assert-That -Name 'Login response includes a JWT' -Condition (-not [string]::IsNullOrWhiteSpace($script:Token))
+
     # --- registration -------------------------------------------------------------------------
 
     Write-Section 'Sensor registration'
+
+    $badMac = Invoke-Api POST '/api/sensors' @{
+        macAddress = 'abc'; facilityName = 'Facility A'
+        zoneName = 'Zone 1'; category = 'Environmental'
+    }
+    Assert-Status 'Reject a MAC that is not IEEE or SX- format' $badMac 400
+    Assert-That -Name 'MAC violation names the regex rule' `
+        -Condition ($badMac.Content -like '*IEEE MAC*') -Detail $badMac.Content
 
     $register = Invoke-Api POST '/api/sensors' @{
         macAddress = $environmentalId; facilityName = 'Facility A'
@@ -178,8 +209,14 @@ try {
     Assert-That -Name 'Blank-name violation names the offending path' `
         -Condition ($blank.Content -like '*blank name*') -Detail $blank.Content
 
+    $namedBranch = Invoke-Api POST '/api/sensors' @{
+        macAddress = 'A4:CF:12:01:EE:05'; facilityName = 'Facility A'
+        zoneName = 'Zone 1'; subZoneName = 'A4:CF:12:01:FF:06'; category = 'Environmental'
+    }
+    Assert-Status 'Register a sensor under a MAC-named sub-zone' $namedBranch 201
+
     $collision = Invoke-Api POST '/api/sensors' @{
-        macAddress = 'Sub-Zone B'; facilityName = 'Facility A'
+        macAddress = 'A4:CF:12:01:FF:06'; facilityName = 'Facility A'
         zoneName = 'Zone 1'; category = 'Environmental'
     }
     Assert-Status 'Reject a MAC colliding with a sibling sub-zone' $collision 400
@@ -246,13 +283,31 @@ try {
     Write-Section 'Media and log attachments'
 
     $sample = Join-Path $env:TEMP 'smartx-node-config.txt'
-    Set-Content -Path $sample -Value "wifi_ssid=SmartX-Mesh`npoll_interval_ms=5000" -Encoding ascii
+    Set-Content -Path $sample -Value "boot`nlink up`nbrownout on rail 3" -Encoding ascii
+    $auth = @('-H', "Authorization: Bearer $script:Token")
 
-    $upload = curl.exe -s -o - -w '%{http_code}' -X POST "$BaseUrl/api/sensors/$environmentalId/attachments" -F "file=@$sample"
-    Assert-That -Name 'Upload a config file to a registered sensor (expected HTTP 200)' `
-        -Condition ($upload -match '200$') -Detail $upload
+    $uploadBody = Join-Path $env:TEMP 'smartx-upload.json'
+    $uploadCode = curl.exe -s -o $uploadBody -w '%{http_code}' @auth -X POST "$BaseUrl/api/sensors/$environmentalId/attachments" -F "file=@$sample;type=text/plain"
+    Assert-That -Name 'Upload a log file to a registered sensor (expected HTTP 200)' `
+        -Condition ($uploadCode -eq '200') -Detail "$uploadCode $(Get-Content $uploadBody -Raw)"
+    Assert-That -Name 'Upload response includes a summary of the file contents' `
+        -Condition ((Get-Content $uploadBody -Raw) -like '*brownout on rail 3*') `
+        -Detail (Get-Content $uploadBody -Raw)
 
-    $orphanUpload = curl.exe -s -o NUL -w '%{http_code}' -X POST "$BaseUrl/api/sensors/NOT-REGISTERED/attachments" -F "file=@$sample"
+    $exe = Join-Path $env:TEMP 'payload.exe'
+    Set-Content -Path $exe -Value 'x' -Encoding ascii
+    $badType = curl.exe -s -o NUL -w '%{http_code}' @auth -X POST "$BaseUrl/api/sensors/$environmentalId/attachments" -F "file=@$exe;type=application/octet-stream"
+    Assert-That -Name 'Reject an executable attachment (expected HTTP 400)' `
+        -Condition ($badType -eq '400') -Detail $badType
+
+    $huge = Join-Path $env:TEMP 'smartx-too-big.log'
+    $payload = New-Object byte[] (2MB + 1)
+    [IO.File]::WriteAllBytes($huge, $payload)
+    $tooBig = curl.exe -s -o NUL -w '%{http_code}' @auth -X POST "$BaseUrl/api/sensors/$environmentalId/attachments" -F "file=@$huge;type=text/plain"
+    Assert-That -Name 'Reject an attachment over 2 MB (expected HTTP 400)' `
+        -Condition ($tooBig -eq '400') -Detail $tooBig
+
+    $orphanUpload = curl.exe -s -o NUL -w '%{http_code}' @auth -X POST "$BaseUrl/api/sensors/NOT-REGISTERED/attachments" -F "file=@$sample;type=text/plain"
     Assert-That -Name 'Reject an upload for an unregistered sensor (expected HTTP 404)' `
         -Condition ($orphanUpload -eq '404') -Detail $orphanUpload
 

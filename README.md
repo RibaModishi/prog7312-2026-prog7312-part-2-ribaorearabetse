@@ -25,6 +25,10 @@ The solution is split into three projects:
 - **`PowerReading`** — a struct with overloaded `+`, `-`, `>`, and `<` operators, supporting direct aggregation and delta comparisons of sensor values (e.g. `meter3 = meter1 + meter2`).
 - **`DeploymentValidator`** — a recursive algorithm validating nested device deployment trees (Facility → Zone → Sub-Zone → Sensor), checking for blank names, duplicate sibling names, and structurally invalid sensor nodes, and reporting every violation found rather than stopping at the first.
 - **`TelemetryBatchProcessor<T>`** — accumulates historical telemetry as a jagged array (`T[][]`), reflecting that real sensor polling cycles can vary in length, and flattens that raw data into optimised `List<TelemetryPacket<T>>` collections.
+- **`TelemetryHistory<T>`** — a custom bounded ring collection (`IReadOnlyList<TelemetryPacket<T>>`) for live ingest. Newest packets overwrite the oldest once the ring is full.
+- **Operator JWT login** — the MAUI client signs in before it can register sensors, upload files, or poll alerts. Demo credentials: `operator` / `SmartX-Demo!`.
+- **Sensor identity regex** — registrations accept an IEEE MAC (`AA:BB:CC:DD:EE:FF`) or a Smart-X unique id (`SX-NODE01`). Anything else is rejected on the client and the API.
+- **Attachment guards** — uploads are limited to `.jpg`, `.png`, `.txt`, `.log`, `.json`, `.csv` and 2 MB. After save, the gateway reads the file and returns a summary (last log lines, JSON field count, photo size).
 - **Alert aggregation with contextual anomaly visualisation** — the dashboard's dynamic engagement feature. Rather than showing every threshold breach or sensor disconnect as a separate, disconnected notification, `AlertAggregationService` groups alerts by sensor and time-window proximity into single, contextualised incidents — directly implementing the strategy researched and justified in the Part 1 research report.
 - **Mock telemetry simulation** — since no physical ESP32 hardware is used, `SensorTelemetrySimulator` (a background service) publishes realistic mock readings through the same ingestion path real hardware would use, including occasional threshold breaches and dropped polling cycles, to exercise the system under realistic conditions.
 
@@ -67,10 +71,11 @@ dotnet test SmartX.Shared.Tests
 
 ## Using the application
 
-1. Launch the app — you'll see the Smart-X Gateway landing page with three pillars. Only **Sensor Data Ingestion and Telemetry** is active for Part 1.
-2. Tap through to register a sensor: provide a MAC address/unique identifier, its deployment location (Facility, Zone, and optionally Sub-Zone), and its category (Environmental, Power Consumption, or Actuator).
-3. Once registered, optionally attach a configuration file, deployment photo, or hardware log.
-4. Navigate to the **Live Dashboard** to see grouped, contextualised alerts as the mock telemetry simulator generates readings — including threshold breaches and simulated sensor disconnects.
+1. Launch the app and sign in as `operator` / `SmartX-Demo!`.
+2. You'll see the Smart-X Gateway landing page with three pillars. Only **Sensor Data Ingestion and Telemetry** is active for Part 1.
+3. Tap through to register a sensor: provide an IEEE MAC (`A4:CF:12:01:AA:01`) or a unique id (`SX-NODE01`), its deployment location (Facility, Zone, and optionally Sub-Zone), and its category (Environmental, Power Consumption, or Actuator).
+4. Once registered, optionally attach a `.jpg`, `.png`, `.txt`, `.log`, `.json` or `.csv` (max 2 MB). The gateway reads the file and shows a summary.
+5. Navigate to the **Live Dashboard** to see grouped, contextualised alerts as the mock telemetry simulator generates readings — including threshold breaches and simulated sensor disconnects.
 
 ## Project status
 

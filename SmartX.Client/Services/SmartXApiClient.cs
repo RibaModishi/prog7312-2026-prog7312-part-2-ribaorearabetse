@@ -14,6 +14,8 @@ namespace SmartX.Client.Services;
 /// </summary>
 public class SmartXApiClient(HttpClient httpClient)
 {
+    private string? _accessToken;
+
     // The gateway serialises enums by name, so the client has to read and write them the same way
     // or SensorCategory round-trips as a number the API cannot match.
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -36,7 +38,7 @@ public class SmartXApiClient(HttpClient httpClient)
                     : SensorRegistrationOutcome.Succeeded(sensor);
             }
 
-            if (response.StatusCode == HttpStatusCode.BadRequest)
+            if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized)
             {
                 var body = await response.Content.ReadAsStringAsync();
                 return SensorRegistrationOutcome.Failed(ExtractViolations(body));
@@ -128,7 +130,7 @@ public class SmartXApiClient(HttpClient httpClient)
 
             return string.IsNullOrWhiteSpace(saved?.SavedName)
                 ? AttachmentUploadOutcome.Failed("The gateway stored the file but did not say under what name.")
-                : AttachmentUploadOutcome.Succeeded(saved.SavedName);
+                : AttachmentUploadOutcome.Succeeded(saved.SavedName, saved.Preview);
         }
         catch (HttpRequestException)
         {
@@ -235,7 +237,82 @@ public class SmartXApiClient(HttpClient httpClient)
     private sealed class AttachmentPayload
     {
         public string? SavedName { get; set; }
+
+        public string? Preview { get; set; }
     }
+
+    public bool HasAccessToken => !string.IsNullOrWhiteSpace(_accessToken);
+
+    public void SetAccessToken(string? token)
+    {
+        _accessToken = token;
+        httpClient.DefaultRequestHeaders.Authorization = string.IsNullOrWhiteSpace(token)
+            ? null
+            : new AuthenticationHeaderValue("Bearer", token);
+    }
+
+    public async Task<LoginOutcome> LoginAsync(string username, string password)
+    {
+        try
+        {
+            using var response = await httpClient.PostAsJsonAsync(
+                "api/auth/login",
+                new { username, password },
+                JsonOptions);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                var messages = ExtractMessages(body);
+                return LoginOutcome.Failed(messages.Count > 0
+                    ? string.Join(" ", messages)
+                    : "Username or password is not recognised.");
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<LoginPayload>(JsonOptions);
+            if (string.IsNullOrWhiteSpace(payload?.Token))
+            {
+                return LoginOutcome.Failed("The gateway accepted the login but returned no token.");
+            }
+
+            SetAccessToken(payload.Token);
+            return LoginOutcome.Succeeded();
+        }
+        catch (HttpRequestException)
+        {
+            return LoginOutcome.Failed(
+                $"Could not reach the Smart-X gateway at {httpClient.BaseAddress}. Check the API is running.");
+        }
+        catch (TaskCanceledException)
+        {
+            return LoginOutcome.Failed("The gateway did not respond in time.");
+        }
+        catch (JsonException)
+        {
+            return LoginOutcome.Failed("The gateway returned a response the client could not read.");
+        }
+    }
+
+    private sealed class LoginPayload
+    {
+        public string? Token { get; set; }
+    }
+}
+
+public class LoginOutcome
+{
+    private LoginOutcome(string? errorMessage)
+    {
+        ErrorMessage = errorMessage;
+    }
+
+    public string? ErrorMessage { get; }
+
+    public bool IsSuccess => ErrorMessage is null;
+
+    public static LoginOutcome Succeeded() => new(null);
+
+    public static LoginOutcome Failed(string errorMessage) => new(errorMessage);
 }
 
 /// <summary>
@@ -268,21 +345,24 @@ public class SensorRegistrationOutcome
 /// </summary>
 public class AttachmentUploadOutcome
 {
-    private AttachmentUploadOutcome(string? fileName, string? errorMessage)
+    private AttachmentUploadOutcome(string? fileName, string? preview, string? errorMessage)
     {
         FileName = fileName;
+        Preview = preview;
         ErrorMessage = errorMessage;
     }
 
     public string? FileName { get; }
 
+    public string? Preview { get; }
+
     public string? ErrorMessage { get; }
 
     public bool IsSuccess => FileName is not null;
 
-    public static AttachmentUploadOutcome Succeeded(string fileName) => new(fileName, null);
+    public static AttachmentUploadOutcome Succeeded(string fileName, string? preview) => new(fileName, preview, null);
 
-    public static AttachmentUploadOutcome Failed(string errorMessage) => new(null, errorMessage);
+    public static AttachmentUploadOutcome Failed(string errorMessage) => new(null, null, errorMessage);
 }
 
 /// <summary>

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartX.Api.Services;
 using SmartX.Shared.Contracts;
@@ -9,6 +10,7 @@ namespace SmartX.Api.Controllers;
 /// time, so this endpoint is a snapshot rather than a query that recomputes windows on the way out.
 /// </summary>
 [ApiController]
+[Authorize]
 [Route("api/alerts")]
 public class AlertsController(AlertAggregationService alerts) : ControllerBase
 {

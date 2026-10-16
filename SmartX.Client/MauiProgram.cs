@@ -28,6 +28,7 @@ public static class MauiProgram
 
 		// Registering the pages lets Shell resolve them through the container, which is what gives
 		// SensorRegistrationPage its SmartXApiClient without a service locator.
+		builder.Services.AddTransient<LoginPage>();
 		builder.Services.AddSingleton<MainPage>();
 		builder.Services.AddTransient<SensorRegistrationPage>();
 		builder.Services.AddTransient<AlertDashboardPage>();

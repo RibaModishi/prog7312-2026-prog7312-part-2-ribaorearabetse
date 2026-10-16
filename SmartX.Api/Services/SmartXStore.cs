@@ -1,3 +1,4 @@
+using SmartX.Shared.Attachments;
 using SmartX.Shared.Contracts;
 using SmartX.Shared.Deployment;
 using SmartX.Shared.Telemetry;
@@ -25,6 +26,7 @@ public class SmartXStore
     private readonly object _gate = new();
     private readonly Dictionary<string, SensorRecord> _sensors = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTime> _lastSeenUtc = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<AttachmentSummary>> _attachments = new(StringComparer.OrdinalIgnoreCase);
     private readonly CategoryChannel<float> _environmental = new();
     private readonly CategoryChannel<int> _power = new();
     private readonly CategoryChannel<bool> _actuator = new();
@@ -59,11 +61,11 @@ public class SmartXStore
     /// </summary>
     public RegistrationResult RegisterSensor(SensorRegistrationRequest request)
     {
-        var macAddress = request.MacAddress?.Trim() ?? string.Empty;
+        var macAddress = SensorIdentity.Normalize(request.MacAddress);
 
-        if (string.IsNullOrWhiteSpace(macAddress))
+        if (!SensorIdentity.IsValid(macAddress))
         {
-            return RegistrationResult.Rejected(["A sensor must be registered with a MAC address or unique identifier."]);
+            return RegistrationResult.Rejected([SensorIdentity.DescribeViolation(macAddress)]);
         }
 
         lock (_gate)
@@ -145,7 +147,7 @@ public class SmartXStore
         {
             if (!channel.Recent.TryGetValue(sensorId, out var readings))
             {
-                readings = [];
+                readings = new TelemetryHistory<T>();
                 channel.Recent[sensorId] = readings;
             }
 
@@ -178,7 +180,7 @@ public class SmartXStore
     {
         lock (_gate)
         {
-            return channel.Recent.TryGetValue(sensorId, out var readings) ? readings.ToList() : [];
+            return channel.Recent.TryGetValue(sensorId, out var readings) ? readings.Snapshot() : [];
         }
     }
 
@@ -266,6 +268,28 @@ public class SmartXStore
     {
         public Dictionary<string, TelemetryBatchProcessor<T>> Batches { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-        public Dictionary<string, List<TelemetryPacket<T>>> Recent { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, TelemetryHistory<T>> Recent { get; } = new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    public void RememberAttachment(string sensorId, AttachmentSummary summary)
+    {
+        lock (_gate)
+        {
+            if (!_attachments.TryGetValue(sensorId, out var list))
+            {
+                list = [];
+                _attachments[sensorId] = list;
+            }
+
+            list.Add(summary);
+        }
+    }
+
+    public IReadOnlyList<AttachmentSummary> AttachmentsFor(string sensorId)
+    {
+        lock (_gate)
+        {
+            return _attachments.TryGetValue(sensorId, out var list) ? list.ToList() : [];
+        }
     }
 }

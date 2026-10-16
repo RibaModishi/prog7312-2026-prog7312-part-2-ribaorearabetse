@@ -67,7 +67,7 @@ jobs:
 
           echo "Waiting for gateway..."
           for i in $(seq 1 30); do
-            if curl -sf "http://127.0.0.1:5022/api/alerts" >/dev/null; then
+            if curl -sf "http://127.0.0.1:5022/api/health" >/dev/null; then
               echo "Gateway ready after ${i}s"
               break
             fi
@@ -82,28 +82,54 @@ jobs:
             fi
           done
 
-          printf '%s\n' '{"macAddress":"CI:PWR:01","facilityName":"CI Lab","zoneName":"Zone 1","category":"PowerConsumption"}' > /tmp/register.json
-          printf '%s\n' '{"sensorId":"CI:PWR:01","value":800}' > /tmp/power-ok.json
-          printf '%s\n' '{"sensorId":"CI:PWR:01","value":1620}' > /tmp/power-breach.json
+          curl -sf -X POST "http://127.0.0.1:5022/api/auth/login" \
+            -H "Content-Type: application/json" \
+            --data '{"username":"operator","password":"SmartX-Demo!"}' \
+            | tee /tmp/login.json
+          TOKEN=$(python3 -c "import json; print(json.load(open('/tmp/login.json'))['token'])")
+          AUTH=( -H "Authorization: Bearer ${TOKEN}" )
+
+          printf '%s\n' '{"macAddress":"abc","facilityName":"CI Lab","zoneName":"Zone 1","category":"PowerConsumption"}' > /tmp/bad-mac.json
+          curl -s -o /tmp/bad-mac-response.json -w '%{http_code}' -X POST "http://127.0.0.1:5022/api/sensors" \
+            "${AUTH[@]}" -H "Content-Type: application/json" \
+            --data-binary @/tmp/bad-mac.json | tee /tmp/bad-mac-status.txt
+          grep -q "400" /tmp/bad-mac-status.txt
+          grep -q "IEEE MAC" /tmp/bad-mac-response.json
+
+          printf '%s\n' '{"macAddress":"C1:00:00:00:00:01","facilityName":"CI Lab","zoneName":"Zone 1","category":"PowerConsumption"}' > /tmp/register.json
+          printf '%s\n' '{"sensorId":"C1:00:00:00:00:01","value":800}' > /tmp/power-ok.json
+          printf '%s\n' '{"sensorId":"C1:00:00:00:00:01","value":1620}' > /tmp/power-breach.json
 
           curl -sf -X POST "http://127.0.0.1:5022/api/sensors" \
-            -H "Content-Type: application/json" \
+            "${AUTH[@]}" -H "Content-Type: application/json" \
             --data-binary @/tmp/register.json \
             | tee /tmp/register-response.json
-          grep -q "CI:PWR:01" /tmp/register-response.json
+          grep -q "C1:00:00:00:00:01" /tmp/register-response.json
+
+          printf '%s\n' 'boot' 'link up' 'brownout on rail 3' > /tmp/node.log
+          curl -sf -X POST "http://127.0.0.1:5022/api/sensors/C1:00:00:00:00:01/attachments" \
+            "${AUTH[@]}" -F "file=@/tmp/node.log;type=text/plain" \
+            | tee /tmp/upload.json
+          grep -q "brownout on rail 3" /tmp/upload.json
+
+          printf 'x' > /tmp/payload.exe
+          curl -s -o /tmp/bad-file.json -w '%{http_code}' -X POST "http://127.0.0.1:5022/api/sensors/C1:00:00:00:00:01/attachments" \
+            "${AUTH[@]}" -F "file=@/tmp/payload.exe;type=application/octet-stream" \
+            | tee /tmp/bad-file-status.txt
+          grep -q "400" /tmp/bad-file-status.txt
 
           # In-band reading must not be required to clear alerts — just proves ingest works.
           curl -sf -X POST "http://127.0.0.1:5022/api/telemetry/power" \
-            -H "Content-Type: application/json" \
+            "${AUTH[@]}" -H "Content-Type: application/json" \
             --data-binary @/tmp/power-ok.json >/dev/null
 
           # Breach must produce a Warning group.
           curl -sf -X POST "http://127.0.0.1:5022/api/telemetry/power" \
-            -H "Content-Type: application/json" \
+            "${AUTH[@]}" -H "Content-Type: application/json" \
             --data-binary @/tmp/power-breach.json >/dev/null
 
-          curl -sf "http://127.0.0.1:5022/api/alerts" | tee /tmp/alerts.json
-          grep -q "CI:PWR:01" /tmp/alerts.json
+          curl -sf "${AUTH[@]}" "http://127.0.0.1:5022/api/alerts" | tee /tmp/alerts.json
+          grep -q "C1:00:00:00:00:01" /tmp/alerts.json
           grep -q "ThresholdBreach" /tmp/alerts.json
           grep -q "Warning" /tmp/alerts.json
           grep -q "1620" /tmp/alerts.json

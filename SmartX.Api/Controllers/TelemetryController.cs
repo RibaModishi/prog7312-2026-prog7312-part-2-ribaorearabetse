@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartX.Api.Models;
 using SmartX.Api.Services;
@@ -14,6 +15,7 @@ namespace SmartX.Api.Controllers;
 /// the one generic wrapper across float, int and bool.
 /// </summary>
 [ApiController]
+[Authorize]
 [Route("api/telemetry")]
 public class TelemetryController(SmartXStore store, AlertAggregationService alerts) : ControllerBase
 {

@@ -12,8 +12,15 @@
     Shell.UnselectedColor="{StaticResource SmartXTextSecondary}">
 
     <ShellContent
+        Title="Sign In"
+        ContentTemplate="{DataTemplate local:LoginPage}"
+        Route="login"
+        FlyoutItemIsVisible="False" />
+
+    <ShellContent
         Title="Home"
         ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
+        Route="home"
+        FlyoutItemIsVisible="False" />
 
 </Shell>

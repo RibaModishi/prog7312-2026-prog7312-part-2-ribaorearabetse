@@ -54,7 +54,7 @@
                         <Label Text="Device MAC Address / Unique Identifier" Style="{StaticResource FieldLabel}" />
                         <Entry x:Name="MacAddressEntry"
                                Style="{StaticResource FormEntry}"
-                               Placeholder="A4:CF:12:01:AA:01" />
+                               Placeholder="A4:CF:12:01:AA:01 or SX-NODE01" />
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="6">
@@ -122,13 +122,17 @@
                         <Label Text="Attach a File" Style="{StaticResource PillarTitle}" />
                         <Label x:Name="AttachmentTargetLabel" Style="{StaticResource FieldHint}" />
                         <Label Style="{StaticResource FieldHint}"
-                               Text="Optional — a configuration file, deployment photo or hardware log for this sensor." />
+                               Text="Optional — a .jpg, .png, .txt, .log, .json or .csv up to 2 MB. The gateway reads the file and shows a summary." />
                     </VerticalStackLayout>
 
                     <Button x:Name="ChooseFileButton"
                             Style="{StaticResource SecondaryButton}"
                             Text="Choose File"
                             Clicked="OnChooseFileClicked" />
+
+                    <Label x:Name="LatestSummaryLabel"
+                           Style="{StaticResource FieldHint}"
+                           IsVisible="False" />
 
                     <Grid x:Name="PendingFileRow"
                           IsVisible="False"
