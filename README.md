@@ -121,3 +121,49 @@ A moisture value of `10` on `POST /api/telemetry/environmental` is the same bypa
 ## Project status
 
 Part 1 ingestion and Part 2 command stream are both on the home page. Network Topology and Mesh Routing stays disabled for the final Portfolio of Evidence.
+
+## References
+
+Cormen, T.H., Leiserson, C.E., Rivest, R.L. and Stein, C. (2022) *Introduction to algorithms*. 4th edn. Cambridge, MA: MIT Press.
+
+East, D. (n.d.) *Getting started with Firebase Auth on the Web*. Available at: https://www.youtube.com/watch?v=-OKrloDzGpU (Accessed: 19 October 2026).
+
+Firebase (n.d.) *Firebase Authentication REST API*. Available at: https://firebase.google.com/docs/reference/rest/auth (Accessed: 19 October 2026).
+
+Firebase (n.d.) *Get started with Firebase Authentication on websites*. Available at: https://firebase.google.com/docs/auth/web/start (Accessed: 19 October 2026).
+
+Firebase (n.d.) *Verify ID tokens*. Available at: https://firebase.google.com/docs/auth/admin/verify-id-tokens (Accessed: 19 October 2026).
+
+Google Cloud (n.d.) *Method: accounts.signInWithPassword*. Available at: https://docs.cloud.google.com/identity-platform/docs/reference/rest/v1/accounts/signInWithPassword (Accessed: 19 October 2026).
+
+Janbodnar (n.d.) *C# PriorityQueue*. Available at: https://zetcode.com/csharp/priority-queue/ (Accessed: 19 October 2026).
+
+Microsoft (n.d.) *Dictionary<TKey,TValue> class*. Available at: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2 (Accessed: 19 October 2026).
+
+Microsoft (n.d.) *HashSet<T> class*. Available at: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.hashset-1 (Accessed: 19 October 2026).
+
+Microsoft (n.d.) *Overview of ASP.NET Core authentication*. Available at: https://learn.microsoft.com/en-us/aspnet/core/security/authentication/ (Accessed: 19 October 2026).
+
+Microsoft (n.d.) *PriorityQueue<TElement,TPriority> class*. Available at: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.priorityqueue-2 (Accessed: 19 October 2026).
+
+Microsoft (n.d.) *Queue<T> class*. Available at: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.queue-1 (Accessed: 19 October 2026).
+
+Microsoft (n.d.) *SortedDictionary<TKey,TValue> class*. Available at: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.sorteddictionary-2 (Accessed: 19 October 2026).
+
+Microsoft (n.d.) *Stack<T> class*. Available at: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.stack-1 (Accessed: 19 October 2026).
+
+Microsoft (n.d.) *Use HttpClientFactory to implement resilient HTTP requests*. Available at: https://learn.microsoft.com/en-us/dotnet/core/extensions/httpclient-factory (Accessed: 19 October 2026).
+
+NetMentor (2021) *PriorityQueue in C#*. Available at: https://www.netmentor.es/entrada/en/priorityqueue-csharp (Accessed: 19 October 2026).
+
+.NET Core Tutorials (n.d.) *PriorityQueue in C# .NET*. Available at: https://dotnetcoretutorials.com/priorityqueue-in-net/ (Accessed: 19 October 2026).
+
+Roy Chowdhury, K. (2024) *Learn Advanced C# Part 1: Step by step build PriorityQueue*. Available at: https://www.youtube.com/watch?v=ikbp6vph-6s (Accessed: 19 October 2026).
+
+YouTube (n.d.) *C# Collections tutorial: List, HashSet, Dictionary, Queue and Stack*. Available at: https://www.youtube.com/watch?v=4Mi4OuSMo4A (Accessed: 19 October 2026).
+
+YouTube (n.d.) *C# collections: Stack, Queue and Dictionary*. Available at: https://www.youtube.com/watch?v=GmftVtxrKUc (Accessed: 19 October 2026).
+
+YouTube (n.d.) *C# hands on: queues*. Available at: https://www.youtube.com/watch?v=huzE208-ha8 (Accessed: 19 October 2026).
+
+YouTube (n.d.) *Master the PriorityQueue, a collection in .NET*. Available at: https://www.youtube.com/watch?v=d262kUQKT0E (Accessed: 19 October 2026).
