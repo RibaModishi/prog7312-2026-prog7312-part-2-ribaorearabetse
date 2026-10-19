@@ -1,49 +1,167 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:SmartX.Client"
              x:Class="SmartX.Client.CommandStreamPage"
              Style="{StaticResource SmartXPage}"
              Title="Command Stream"
              Shell.NavBarIsVisible="False">
 
-    <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="16">
-        <Label Text="&#x2190; Home"
-               TextColor="{StaticResource SmartXAccent}">
-            <Label.GestureRecognizers>
-                <TapGestureRecognizer Tapped="OnBackTapped" />
-            </Label.GestureRecognizers>
-        </Label>
+    <CollectionView x:Name="DeviceList"
+                    Margin="28,12,28,12"
+                    MaximumWidthRequest="880"
+                    HorizontalOptions="Center"
+                    SelectionMode="None"
+                    BackgroundColor="{StaticResource SmartXBackground}"
+                    ItemSizingStrategy="MeasureAllItems">
+        <CollectionView.ItemsLayout>
+            <LinearItemsLayout Orientation="Vertical" ItemSpacing="12" />
+        </CollectionView.ItemsLayout>
 
-        <VerticalStackLayout Grid.Row="1" Spacing="6">
-            <Label Text="REAL-TIME COMMAND STREAM" Style="{StaticResource SectionLabel}" />
-            <Label Text="Live devices and overrides" Style="{StaticResource PageTitle}" />
-            <Label x:Name="StatusLabel" Style="{StaticResource PageSubtitle}" Text="Waiting for the gateway." />
-        </VerticalStackLayout>
-
-        <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="8">
-            <Entry x:Name="QueryEntry" Grid.ColumnSpan="2" Placeholder="Search name, MAC, or zone" Style="{StaticResource FormEntry}" />
-            <Button Grid.Column="2" Text="Search" Style="{StaticResource PrimaryButton}" Clicked="OnSearchClicked" />
-            <Picker x:Name="CategoryPicker" Grid.Row="1" Title="Category" />
-            <Picker x:Name="AlertPicker" Grid.Row="1" Grid.Column="1" Title="Alert state" />
-            <Button Grid.Row="1" Grid.Column="2" Text="Import devices" Style="{StaticResource SecondaryButton}" Clicked="OnImportClicked" />
-        </Grid>
-
-        <ScrollView Grid.Row="3">
-            <VerticalStackLayout Spacing="16">
-                <Border Style="{StaticResource PillarCard}">
-                    <VerticalStackLayout Spacing="8">
-                        <Label Text="SUGGESTED ACTIONS" Style="{StaticResource SectionLabel}" />
-                        <Label Text="Automated Insights" Style="{StaticResource PillarTitle}" />
-                        <VerticalStackLayout x:Name="SuggestionsLayout" Spacing="6" />
-                    </VerticalStackLayout>
+        <CollectionView.Header>
+            <VerticalStackLayout Spacing="14" Padding="0,8,0,8">
+                <Label Text="← Back home"
+                       TextColor="{StaticResource SmartXAccent}"
+                       FontSize="15">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnBackTapped" />
+                    </Label.GestureRecognizers>
+                </Label>
+                <Border StrokeThickness="0" HeightRequest="150" StrokeShape="RoundRectangle 20">
+                    <Image Source="greenhouse_hero.jpg" Aspect="AspectFill" HeightRequest="150" />
+                </Border>
+                <Label Text="GREENHOUSE FLOOR" Style="{StaticResource SectionLabel}" />
+                <Label Text="What is happening right now" Style="{StaticResource PageTitle}" />
+                <Label x:Name="StatusLabel"
+                       Style="{StaticResource PageSubtitle}"
+                       Text="Looking at the devices." />
+                <Border x:Name="FeedbackCard"
+                        Padding="14,12"
+                        StrokeThickness="0"
+                        BackgroundColor="{StaticResource SmartXAccentSoft}"
+                        IsVisible="False">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12" />
+                    </Border.StrokeShape>
+                    <Label x:Name="FeedbackLabel"
+                           TextColor="#F4F7F2"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           LineBreakMode="WordWrap" />
                 </Border>
 
-                <HorizontalStackLayout Spacing="8">
-                    <Button Text="Undo last command" Style="{StaticResource SecondaryButton}" Clicked="OnUndoClicked" />
-                </HorizontalStackLayout>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <Entry x:Name="QueryEntry"
+                           Style="{StaticResource FormEntry}"
+                           Placeholder="Find a device, for example Pump or Zone 1" />
+                    <Button Grid.Column="1"
+                            Text="Find"
+                            Style="{StaticResource PrimaryButton}"
+                            WidthRequest="120"
+                            Clicked="OnSearchClicked" />
+                </Grid>
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                    <Picker x:Name="CategoryPicker" Title="Show" Style="{StaticResource FormPicker}" />
+                    <Picker x:Name="AlertPicker" Grid.Column="1" Title="Condition" Style="{StaticResource FormPicker}" />
+                    <Button Grid.Column="2"
+                            Text="Load a device list"
+                            Style="{StaticResource SecondaryButton}"
+                            Clicked="OnImportClicked" />
+                </Grid>
 
-                <VerticalStackLayout x:Name="DeviceLayout" Spacing="10" />
+                <Border Style="{StaticResource PillarCard}" Padding="18,16">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="WORTH A LOOK" Style="{StaticResource SectionLabel}" />
+                        <Label Text="What the system noticed" Style="{StaticResource PillarTitle}" />
+                        <VerticalStackLayout x:Name="SuggestionsLayout" Spacing="8" />
+                        <Button Text="Undo the last command"
+                                Style="{StaticResource SecondaryButton}"
+                                HorizontalOptions="Start"
+                                Clicked="OnUndoClicked" />
+                    </VerticalStackLayout>
+                </Border>
             </VerticalStackLayout>
-        </ScrollView>
-    </Grid>
+        </CollectionView.Header>
+
+        <CollectionView.Footer>
+            <BoxView HeightRequest="28" Color="Transparent" />
+        </CollectionView.Footer>
+
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="local:DeviceCard">
+                <Border Style="{StaticResource PillarCard}"
+                        BackgroundColor="{Binding Wash}"
+                        Stroke="{Binding Accent}"
+                        StrokeThickness="2">
+                    <Grid ColumnDefinitions="92,*" ColumnSpacing="14">
+                        <Border StrokeShape="RoundRectangle 14"
+                                StrokeThickness="0"
+                                HeightRequest="92"
+                                WidthRequest="92"
+                                VerticalOptions="Start">
+                            <Image Source="{Binding ImageName}"
+                                   Aspect="AspectFill"
+                                   HeightRequest="92"
+                                   WidthRequest="92" />
+                        </Border>
+                        <VerticalStackLayout Grid.Column="1" Spacing="6">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="{Binding Title}" Style="{StaticResource PillarTitle}" />
+                                <Border Grid.Column="1"
+                                        Padding="10,4"
+                                        StrokeThickness="0"
+                                        BackgroundColor="{Binding Accent}"
+                                        VerticalOptions="Center">
+                                    <Border.StrokeShape>
+                                        <RoundRectangle CornerRadius="10" />
+                                    </Border.StrokeShape>
+                                    <Label Text="{Binding Badge}"
+                                           TextColor="#14241B"
+                                           FontAttributes="Bold"
+                                           FontSize="12" />
+                                </Border>
+                            </Grid>
+                            <Label Text="{Binding Story}"
+                                   FontSize="16"
+                                   TextColor="{StaticResource SmartXTextPrimary}" />
+                            <Label Text="{Binding Place}" Style="{StaticResource PillarDescription}" />
+                            <HorizontalStackLayout BindableLayout.ItemsSource="{Binding Bars}"
+                                                   Spacing="4"
+                                                   HeightRequest="36"
+                                                   Margin="0,6,0,2">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="local:ReadingBar">
+                                        <BoxView WidthRequest="10"
+                                                 HeightRequest="{Binding Height}"
+                                                 Color="{Binding Color}"
+                                                 VerticalOptions="End"
+                                                 CornerRadius="2" />
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </HorizontalStackLayout>
+                            <HorizontalStackLayout Spacing="8"
+                                                   IsVisible="{Binding ShowControls}"
+                                                   Margin="0,6,0,0">
+                                <Button Text="Switch on"
+                                        Style="{StaticResource PrimaryButton}"
+                                        WidthRequest="130"
+                                        CommandParameter="{Binding SensorId}"
+                                        Clicked="OnSwitchOnClicked" />
+                                <Button Text="Switch off"
+                                        Style="{StaticResource SecondaryButton}"
+                                        WidthRequest="130"
+                                        CommandParameter="{Binding SensorId}"
+                                        Clicked="OnSwitchOffClicked" />
+                                <Button Text="Flip"
+                                        Style="{StaticResource SecondaryButton}"
+                                        WidthRequest="90"
+                                        CommandParameter="{Binding SensorId}"
+                                        Clicked="OnFlipClicked" />
+                            </HorizontalStackLayout>
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+    </CollectionView>
 </ContentPage>

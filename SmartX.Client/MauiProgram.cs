@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using SmartX.Client.Services;
 
 namespace SmartX.Client;
@@ -21,10 +21,12 @@ public static class MauiProgram
 				fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
 			});
 
+		builder.Services.AddSingleton<OperatorSession>();
+		builder.Services.AddTransient<SessionAuthHandler>();
 		builder.Services.AddHttpClient<SmartXApiClient>(client =>
 		{
 			client.BaseAddress = new Uri(ResolveApiBaseAddress());
-		});
+		}).AddHttpMessageHandler<SessionAuthHandler>();
 
 		// Registering the pages lets Shell resolve them through the container, which is what gives
 		// SensorRegistrationPage its SmartXApiClient without a service locator.

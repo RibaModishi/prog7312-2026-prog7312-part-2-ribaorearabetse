@@ -13,7 +13,7 @@ namespace SmartX.Client.Services;
 /// rejected registration, a malformed response — comes back as an outcome rather than an
 /// exception, so the UI has one code path to render instead of a try/catch around every call.
 /// </summary>
-public class SmartXApiClient(HttpClient httpClient)
+public class SmartXApiClient(HttpClient httpClient, OperatorSession session)
 {
     private string? _accessToken;
 
@@ -247,6 +247,7 @@ public class SmartXApiClient(HttpClient httpClient)
     public void SetAccessToken(string? token)
     {
         _accessToken = token;
+        session.AccessToken = token;
         httpClient.DefaultRequestHeaders.Authorization = string.IsNullOrWhiteSpace(token)
             ? null
             : new AuthenticationHeaderValue("Bearer", token);
@@ -347,18 +348,47 @@ public class SmartXApiClient(HttpClient httpClient)
         }
     }
 
-    public async Task<string?> IssueCommandAsync(string sensorId, string action)
+    public async Task<(bool Ok, string Message)> IssueCommandAsync(string sensorId, string action)
     {
-        using var response = await httpClient.PostAsJsonAsync("api/commands", new { sensorId, action }, JsonOptions);
-        var body = await response.Content.ReadAsStringAsync();
-        return response.IsSuccessStatusCode ? null : ExtractError(body, response.StatusCode);
+        try
+        {
+            using var response = await httpClient.PostAsJsonAsync("api/commands", new { sensorId, action }, JsonOptions);
+            var body = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                return (false, ExtractError(body, response.StatusCode));
+            }
+
+            return (true, "The device accepted that.");
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return (false, "The gateway did not answer. Check that the API is still running.");
+        }
     }
 
-    public async Task<string?> UndoCommandAsync()
+    public async Task<(bool Ok, string Message)> UndoCommandAsync()
     {
-        using var response = await httpClient.PostAsync("api/commands/undo", null);
-        var body = await response.Content.ReadAsStringAsync();
-        return response.IsSuccessStatusCode ? null : ExtractError(body, response.StatusCode);
+        try
+        {
+            using var response = await httpClient.PostAsync("api/commands/undo", null);
+            var body = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                return (false, ExtractError(body, response.StatusCode));
+            }
+
+            using var document = JsonDocument.Parse(body);
+            var undone = document.RootElement.TryGetProperty("undone", out var flag) && flag.GetBoolean();
+            var message = document.RootElement.TryGetProperty("message", out var text)
+                ? text.GetString()
+                : null;
+            return (undone, message ?? "The last command was undone.");
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            return (false, "The gateway did not answer. Check that the API is still running.");
+        }
     }
 
     public async Task<string?> ImportDevicesAsync(FileResult file)
