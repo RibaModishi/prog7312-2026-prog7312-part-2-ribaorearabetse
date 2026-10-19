@@ -6,9 +6,9 @@ namespace SmartX.Client;
 /// </summary>
 public static class FirebaseConfig
 {
-    public const string ApiKey = "";
+    public const string ApiKey = "AIzaSyAYdCG4NCufZsJ9GwB6siZakK7Olt22BkU";
 
-    public const string ProjectId = "";
+    public const string ProjectId = "smart-x-741d7";
 
     public static bool IsConfigured =>
         !string.IsNullOrWhiteSpace(ApiKey) && !string.IsNullOrWhiteSpace(ProjectId);
