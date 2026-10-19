@@ -11,6 +11,8 @@ public class SensorRecord
 {
     public required string MacAddress { get; init; }
 
+    public string DisplayName { get; init; } = string.Empty;
+
     public required SensorCategory Category { get; init; }
 
     public required string DeploymentPath { get; init; }

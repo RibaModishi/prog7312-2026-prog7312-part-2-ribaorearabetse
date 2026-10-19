@@ -11,6 +11,8 @@ public class SensorRegistrationRequest
 {
     public string MacAddress { get; set; } = string.Empty;
 
+    public string? DisplayName { get; set; }
+
     public string FacilityName { get; set; } = string.Empty;
 
     public string ZoneName { get; set; } = string.Empty;
