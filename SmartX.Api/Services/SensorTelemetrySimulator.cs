@@ -1,24 +1,18 @@
+using System.Net.Http.Json;
 using SmartX.Shared.Contracts;
 using SmartX.Shared.Telemetry;
 
 namespace SmartX.Api.Services;
 
 /// <summary>
-/// Seeds the gateway with mock telemetry because Part 1 has no physical ESP32 mesh to poll.
-/// Each tick walks the live register and publishes through the same
-/// <see cref="SmartXStore.RecordEnvironmental"/> / <see cref="SmartXStore.RecordPower"/> /
-/// <see cref="SmartXStore.RecordActuator"/> path the HTTP ingest endpoints use, so simulated
-/// traffic updates last-seen timestamps, fills the generic packet lists, and hits the
-/// threshold checker identically to a real reading. Occasional skipped cycles are what feed
-/// the disconnect watcher; occasional out-of-band values are what give the dashboard something
-/// to group.
+/// Publishes mock readings by POSTing to the same telemetry endpoints a physical device would call.
+/// A dropped cycle is left unpublished so the disconnect watcher can notice it.
 /// </summary>
 public class SensorTelemetrySimulator(
+    IHttpClientFactory httpClientFactory,
     SmartXStore store,
-    RealtimeStructures realtime,
     ILogger<SensorTelemetrySimulator> logger) : BackgroundService
 {
-    // Same 5-second nominal poll the disconnect watcher treats as one missed cycle.
     private static readonly TimeSpan PollingInterval = SmartXStore.PollingInterval;
 
     private const double DroppedPollChance = 0.08;
@@ -30,58 +24,60 @@ public class SensorTelemetrySimulator(
 
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
-            Tick();
+            await TickAsync(stoppingToken);
         }
     }
 
-    private void Tick()
+    private async Task TickAsync(CancellationToken stoppingToken)
     {
         var published = 0;
         var skipped = 0;
+        var client = httpClientFactory.CreateClient("device-ingest");
 
         foreach (var sensor in store.Sensors)
         {
+            if (Random.Shared.NextDouble() < DroppedPollChance)
+            {
+                skipped++;
+                continue;
+            }
+
             try
             {
-                if (Random.Shared.NextDouble() < DroppedPollChance)
+                if (await PublishAsync(client, sensor, stoppingToken))
                 {
-                    skipped++;
-                    continue;
+                    published++;
                 }
-
-                Publish(sensor);
-                published++;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
-                logger.LogWarning(ex, "Simulator failed to publish for {SensorId}; continuing with the rest of the cycle.", sensor.MacAddress);
+                logger.LogWarning(ex, "Simulator could not reach the telemetry API for {SensorId}.", sensor.MacAddress);
             }
         }
 
         if (published + skipped > 0)
         {
-            logger.LogInformation("Simulator cycle published {Published} reading(s) and skipped {Skipped}.", published, skipped);
+            logger.LogInformation("Simulator cycle posted {Published} reading(s) to the API and skipped {Skipped}.", published, skipped);
         }
     }
 
-    private void Publish(SensorRecord sensor)
+    private static async Task<bool> PublishAsync(HttpClient client, SensorRecord sensor, CancellationToken stoppingToken)
     {
-        realtime.IndexDevice(sensor);
-
-        switch (sensor.Category)
+        var (path, body) = sensor.Category switch
         {
-            case SensorCategory.Environmental:
-                realtime.EnqueueReading(sensor, NextEnvironmental());
-                break;
+            SensorCategory.Environmental => ("api/telemetry/environmental", (object)new { sensorId = sensor.MacAddress, value = NextEnvironmental() }),
+            SensorCategory.PowerConsumption => ("api/telemetry/power", new { sensorId = sensor.MacAddress, value = NextPower() }),
+            SensorCategory.Actuator => ("api/telemetry/actuator", new { sensorId = sensor.MacAddress, value = Random.Shared.Next(2) == 1 }),
+            _ => (null, null)
+        };
 
-            case SensorCategory.PowerConsumption:
-                realtime.EnqueueReading(sensor, NextPower());
-                break;
-
-            case SensorCategory.Actuator:
-                realtime.EnqueueReading(sensor, Random.Shared.Next(2));
-                break;
+        if (path is null || body is null)
+        {
+            return false;
         }
+
+        using var response = await client.PostAsJsonAsync(path, body, stoppingToken);
+        return response.IsSuccessStatusCode;
     }
 
     private static float NextEnvironmental()

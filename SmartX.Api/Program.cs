@@ -58,6 +58,11 @@ builder.Services.AddSingleton<AlertAggregationService>();
 builder.Services.AddSingleton<RealtimeStructures>();
 builder.Services.AddSingleton<SmartX.Shared.Realtime.PredictiveEngine>();
 builder.Services.AddSingleton<TelemetryQueueProcessor>();
+builder.Services.AddHttpClient("device-ingest", client =>
+{
+    client.BaseAddress = new Uri("http://127.0.0.1:5022/");
+    client.DefaultRequestHeaders.Add(DeviceIngestMiddleware.HeaderName, DeviceIngestMiddleware.Key);
+});
 builder.Services.AddHostedService(provider => provider.GetRequiredService<TelemetryQueueProcessor>());
 builder.Services.AddHostedService<SensorDisconnectWatcher>();
 builder.Services.AddHostedService<SensorTelemetrySimulator>();
@@ -76,6 +81,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseAuthentication();
+app.UseMiddleware<DeviceIngestMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
