@@ -81,6 +81,31 @@ public class RealtimeStructureTests
         Assert.Contains("Pump", suggestion.Detail, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void Searching_for_a_pump_while_moisture_is_low_becomes_a_suggestion()
+    {
+        var structures = new RealtimeStructures();
+        var moisture = Sensor("AA:BB:CC:DD:EE:10", SensorCategory.Environmental, "Moisture Sensor B");
+        var pump = Sensor("AA:BB:CC:DD:EE:20", SensorCategory.Actuator, "Pump A");
+        structures.IndexDevice(moisture);
+        structures.IndexDevice(pump);
+        structures.AppendTimeline(new TelemetryEnvelope
+        {
+            SensorId = moisture.MacAddress,
+            Category = SensorCategory.Environmental,
+            Value = 12
+        });
+
+        var engine = new PredictiveEngine();
+        var now = DateTime.UtcNow;
+        engine.RecordSearch("Pump A", now, structures);
+        Assert.DoesNotContain(engine.Suggest(structures), item => item.Action == "StartPump");
+
+        engine.RecordSearch("Pump A", now, structures);
+        var suggestion = Assert.Single(engine.Suggest(structures), item => item.Action == "StartPump");
+        Assert.Contains("searched", suggestion.Detail, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static SensorRecord Sensor(string mac, SensorCategory category, string name = "") => new()
     {
         MacAddress = mac,

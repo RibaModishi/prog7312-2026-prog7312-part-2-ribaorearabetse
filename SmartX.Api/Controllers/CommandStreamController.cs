@@ -37,7 +37,7 @@ public class CommandStreamController(
     [HttpPost("search")]
     public ActionResult<object> Search([FromBody] SearchRequest request)
     {
-        predictive.RecordSearch(request.Query ?? string.Empty, DateTime.UtcNow);
+        predictive.RecordSearch(request.Query ?? string.Empty, DateTime.UtcNow, realtime);
         var devices = BuildDevices()
             .Where(device => Matches(device, request.Category, request.AlertState, request.Query))
             .ToList();

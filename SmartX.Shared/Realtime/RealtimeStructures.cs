@@ -149,6 +149,34 @@ public class RealtimeStructures
         }
     }
 
+    public IReadOnlyList<(string SensorId, double Value, DateTime TimestampUtc)> RecentLowMoisture(
+        DateTime utcNow,
+        TimeSpan window,
+        double threshold)
+    {
+        lock (_gate)
+        {
+            var hits = new List<(string, double, DateTime)>();
+            foreach (var (sensorId, series) in SensorTimeline)
+            {
+                if (series.Count == 0
+                    || !DeviceRegistry.TryGetValue(sensorId, out var device)
+                    || device.Category != SensorCategory.Environmental)
+                {
+                    continue;
+                }
+
+                var last = series.Values.Last();
+                if (last.Value < threshold && utcNow - last.TimestampUtc <= window)
+                {
+                    hits.Add((sensorId, last.Value, last.TimestampUtc));
+                }
+            }
+
+            return hits;
+        }
+    }
+
     public double? LastValue(string sensorId)
     {
         lock (_gate)

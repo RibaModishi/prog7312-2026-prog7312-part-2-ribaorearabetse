@@ -16,11 +16,36 @@ public sealed class PredictiveEngine
     private readonly List<OperatorEvent> _events = [];
     private readonly Dictionary<string, int> _patternCounts = new(StringComparer.OrdinalIgnoreCase);
 
-    public void RecordSearch(string query, DateTime utcNow)
+    public void RecordSearch(string query, DateTime utcNow, RealtimeStructures structures)
     {
         lock (_gate)
         {
             _events.Add(new OperatorEvent { Kind = "search", Text = query, TimestampUtc = utcNow });
+
+            if (string.IsNullOrWhiteSpace(query)
+                || structures.RecentLowMoisture(utcNow, PatternWindow, MoistureSuggestionThreshold).Count == 0)
+            {
+                return;
+            }
+
+            foreach (var device in structures.Devices())
+            {
+                if (device.Category != SensorCategory.Actuator)
+                {
+                    continue;
+                }
+
+                var name = Display(device);
+                if (!name.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase)
+                    && !query.Contains(name, StringComparison.OrdinalIgnoreCase)
+                    && !device.MacAddress.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var key = "search-moisture|" + device.MacAddress;
+                _patternCounts[key] = _patternCounts.TryGetValue(key, out var count) ? count + 1 : 1;
+            }
         }
     }
 
@@ -88,25 +113,33 @@ public sealed class PredictiveEngine
         {
             foreach (var (key, count) in _patternCounts)
             {
-                if (count < MinimumPatternCount || !key.StartsWith("moisture-low|", StringComparison.Ordinal))
+                var fromSearch = key.StartsWith("search-moisture|", StringComparison.Ordinal);
+                var fromCommand = key.StartsWith("moisture-low|", StringComparison.Ordinal);
+                if (count < MinimumPatternCount || (!fromSearch && !fromCommand))
                 {
                     continue;
                 }
 
-                var pumpId = key["moisture-low|".Length..];
-                var stillLow = structures.DeviceRegistry.Values.Any(device =>
-                    device.Category == SensorCategory.Environmental
-                    && structures.LastValue(device.MacAddress) is < MoistureSuggestionThreshold);
-
-                if (!stillLow)
+                var pumpId = key[(key.IndexOf('|') + 1)..];
+                var stillLow = structures.RecentLowMoisture(DateTime.UtcNow, PatternWindow, MoistureSuggestionThreshold);
+                if (stillLow.Count == 0)
                 {
                     continue;
                 }
+
+                var pump = structures.Devices().FirstOrDefault(device =>
+                    device.MacAddress.Equals(pumpId, StringComparison.OrdinalIgnoreCase));
+                var pumpName = pump is null ? pumpId : Display(pump);
+                var moistureName = Display(structures.Devices().First(device =>
+                    device.MacAddress.Equals(stillLow[0].SensorId, StringComparison.OrdinalIgnoreCase)));
+                var reason = fromSearch
+                    ? $"You searched for {pumpName} {count} times while {moistureName} was below {MoistureSuggestionThreshold}."
+                    : $"You started {pumpName} {count} times after {moistureName} dropped below {MoistureSuggestionThreshold}.";
 
                 suggestions.Insert(0, new SuggestedAction
                 {
                     Title = "Suggested action",
-                    Detail = $"Start {pumpId}. You have started this pump {count} times after moisture dropped below {MoistureSuggestionThreshold}.",
+                    Detail = $"Start {pumpName}. {reason}",
                     SensorId = pumpId,
                     Action = "StartPump"
                 });
