@@ -32,6 +32,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<MainPage>();
 		builder.Services.AddTransient<SensorRegistrationPage>();
 		builder.Services.AddTransient<AlertDashboardPage>();
+		builder.Services.AddTransient<CommandStreamPage>();
 
 #if DEBUG
 		builder.Logging.AddDebug();

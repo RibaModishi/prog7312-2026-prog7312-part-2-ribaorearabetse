@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using SmartX.Shared.Contracts;
+using SmartX.Shared.Realtime;
 
 namespace SmartX.Client.Services;
 
@@ -251,51 +252,167 @@ public class SmartXApiClient(HttpClient httpClient)
             : new AuthenticationHeaderValue("Bearer", token);
     }
 
-    public async Task<LoginOutcome> LoginAsync(string username, string password)
+    public async Task<LoginOutcome> LoginAsync(string email, string password)
     {
+        if (!FirebaseConfig.IsConfigured)
+        {
+            return LoginOutcome.Failed(
+                "Firebase is not configured. Set FirebaseConfig.ApiKey and ProjectId to the class Firebase project.");
+        }
+
         try
         {
-            using var response = await httpClient.PostAsJsonAsync(
-                "api/auth/login",
-                new { username, password },
-                JsonOptions);
+            using var firebase = new HttpClient();
+            using var response = await firebase.PostAsJsonAsync(
+                $"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FirebaseConfig.ApiKey}",
+                new { email, password, returnSecureToken = true });
 
+            var body = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode)
             {
-                var body = await response.Content.ReadAsStringAsync();
-                var messages = ExtractMessages(body);
-                return LoginOutcome.Failed(messages.Count > 0
-                    ? string.Join(" ", messages)
-                    : "Username or password is not recognised.");
+                return LoginOutcome.Failed(ReadFirebaseError(body));
             }
 
-            var payload = await response.Content.ReadFromJsonAsync<LoginPayload>(JsonOptions);
-            if (string.IsNullOrWhiteSpace(payload?.Token))
+            var payload = JsonSerializer.Deserialize<FirebaseSignInPayload>(body, JsonOptions);
+            if (string.IsNullOrWhiteSpace(payload?.IdToken))
             {
-                return LoginOutcome.Failed("The gateway accepted the login but returned no token.");
+                return LoginOutcome.Failed("Firebase signed in but did not return an ID token.");
             }
 
-            SetAccessToken(payload.Token);
+            SetAccessToken(payload.IdToken);
             return LoginOutcome.Succeeded();
         }
         catch (HttpRequestException)
         {
-            return LoginOutcome.Failed(
-                $"Could not reach the Smart-X gateway at {httpClient.BaseAddress}. Check the API is running.");
+            return LoginOutcome.Failed("Could not reach Firebase Authentication.");
         }
         catch (TaskCanceledException)
         {
-            return LoginOutcome.Failed("The gateway did not respond in time.");
+            return LoginOutcome.Failed("Firebase did not respond in time.");
         }
         catch (JsonException)
         {
-            return LoginOutcome.Failed("The gateway returned a response the client could not read.");
+            return LoginOutcome.Failed("Firebase returned a response the client could not read.");
         }
     }
 
-    private sealed class LoginPayload
+    public async Task<CommandStreamOutcome> GetCommandStreamAsync(string? category, string? alertState, string? query)
     {
-        public string? Token { get; set; }
+        var path = "api/command-stream?category=" + Uri.EscapeDataString(category ?? "all")
+            + "&alertState=" + Uri.EscapeDataString(alertState ?? "all")
+            + "&q=" + Uri.EscapeDataString(query ?? string.Empty);
+
+        try
+        {
+            using var response = await httpClient.GetAsync(path);
+            var body = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                return CommandStreamOutcome.Failed(ExtractError(body, response.StatusCode));
+            }
+
+            var snapshot = JsonSerializer.Deserialize<CommandStreamSnapshot>(body, JsonOptions);
+            return CommandStreamOutcome.Succeeded(snapshot ?? new CommandStreamSnapshot());
+        }
+        catch (HttpRequestException)
+        {
+            return CommandStreamOutcome.Failed("Could not reach the command stream.");
+        }
+        catch (JsonException)
+        {
+            return CommandStreamOutcome.Failed("The command stream response could not be read.");
+        }
+    }
+
+    public async Task<CommandStreamOutcome> SearchCommandStreamAsync(string? category, string? alertState, string? query)
+    {
+        try
+        {
+            using var response = await httpClient.PostAsJsonAsync(
+                "api/command-stream/search",
+                new { query, category, alertState },
+                JsonOptions);
+            var body = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                return CommandStreamOutcome.Failed(ExtractError(body, response.StatusCode));
+            }
+
+            var snapshot = JsonSerializer.Deserialize<CommandStreamSnapshot>(body, JsonOptions);
+            return CommandStreamOutcome.Succeeded(snapshot ?? new CommandStreamSnapshot());
+        }
+        catch (HttpRequestException)
+        {
+            return CommandStreamOutcome.Failed("Could not reach the command stream.");
+        }
+    }
+
+    public async Task<string?> IssueCommandAsync(string sensorId, string action)
+    {
+        using var response = await httpClient.PostAsJsonAsync("api/commands", new { sensorId, action }, JsonOptions);
+        var body = await response.Content.ReadAsStringAsync();
+        return response.IsSuccessStatusCode ? null : ExtractError(body, response.StatusCode);
+    }
+
+    public async Task<string?> UndoCommandAsync()
+    {
+        using var response = await httpClient.PostAsync("api/commands/undo", null);
+        var body = await response.Content.ReadAsStringAsync();
+        return response.IsSuccessStatusCode ? null : ExtractError(body, response.StatusCode);
+    }
+
+    public async Task<string?> ImportDevicesAsync(FileResult file)
+    {
+        using var content = new MultipartFormDataContent();
+        await using var stream = await file.OpenReadAsync();
+        using var filePart = new StreamContent(stream);
+        filePart.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+        content.Add(filePart, "file", file.FileName);
+
+        using var response = await httpClient.PostAsync("api/sensors/import", content);
+        var body = await response.Content.ReadAsStringAsync();
+        return response.IsSuccessStatusCode ? body : ExtractError(body, response.StatusCode);
+    }
+
+    public async Task<int> CountSensorsAsync()
+    {
+        using var response = await httpClient.GetAsync("api/sensors");
+        if (!response.IsSuccessStatusCode)
+        {
+            return 0;
+        }
+
+        var sensors = await response.Content.ReadFromJsonAsync<List<SensorRecord>>(JsonOptions);
+        return sensors?.Count ?? 0;
+    }
+
+    private static string ReadFirebaseError(string body)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            if (document.RootElement.TryGetProperty("error", out var error)
+                && error.TryGetProperty("message", out var message))
+            {
+                return message.GetString() switch
+                {
+                    "EMAIL_NOT_FOUND" or "INVALID_PASSWORD" or "INVALID_LOGIN_CREDENTIALS" =>
+                        "Firebase rejected that email or password.",
+                    var other when !string.IsNullOrWhiteSpace(other) => other,
+                    _ => "Firebase rejected the sign-in."
+                };
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return "Firebase rejected the sign-in.";
+    }
+
+    private sealed class FirebaseSignInPayload
+    {
+        public string? IdToken { get; set; }
     }
 }
 
@@ -386,4 +503,30 @@ public class AlertDashboardOutcome
     public static AlertDashboardOutcome Succeeded(IReadOnlyList<AlertGroup> groups) => new(groups, null);
 
     public static AlertDashboardOutcome Failed(string errorMessage) => new(null, errorMessage);
+}
+
+public sealed class CommandStreamSnapshot
+{
+    public List<CommandStreamDevice> Devices { get; set; } = [];
+
+    public List<SuggestedAction> Suggestions { get; set; } = [];
+}
+
+public class CommandStreamOutcome
+{
+    private CommandStreamOutcome(CommandStreamSnapshot? snapshot, string? errorMessage)
+    {
+        Snapshot = snapshot ?? new CommandStreamSnapshot();
+        ErrorMessage = errorMessage;
+    }
+
+    public CommandStreamSnapshot Snapshot { get; }
+
+    public string? ErrorMessage { get; }
+
+    public bool IsSuccess => ErrorMessage is null;
+
+    public static CommandStreamOutcome Succeeded(CommandStreamSnapshot snapshot) => new(snapshot, null);
+
+    public static CommandStreamOutcome Failed(string errorMessage) => new(null, errorMessage);
 }

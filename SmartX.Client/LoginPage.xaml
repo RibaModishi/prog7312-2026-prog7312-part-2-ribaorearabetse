@@ -13,17 +13,18 @@
                 <Label Text="SMART-X" Style="{StaticResource SectionLabel}" />
                 <Label Text="Operator Sign In" Style="{StaticResource PageTitle}" />
                 <Label Style="{StaticResource PageSubtitle}"
-                       Text="The gateway only accepts authenticated operators. Sign in to register sensors, attach files, and watch the live dashboard." />
+                       Text="Sign in with the Firebase account for this gateway. The password is checked by Firebase, not stored in the app." />
             </VerticalStackLayout>
 
             <Border Style="{StaticResource PillarCard}">
                 <VerticalStackLayout Spacing="16">
 
                     <VerticalStackLayout Spacing="6">
-                        <Label Text="Username" Style="{StaticResource FieldLabel}" />
+                        <Label Text="Email" Style="{StaticResource FieldLabel}" />
                         <Entry x:Name="UsernameEntry"
                                Style="{StaticResource FormEntry}"
-                               Placeholder="operator" />
+                               Keyboard="Email"
+                               Placeholder="operator@smartx.dev" />
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="6">
@@ -31,7 +32,7 @@
                         <Entry x:Name="PasswordEntry"
                                Style="{StaticResource FormEntry}"
                                IsPassword="True"
-                               Placeholder="SmartX-Demo!" />
+                               Placeholder="Firebase password" />
                     </VerticalStackLayout>
 
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">

@@ -1,10 +1,10 @@
-# prog7312-2026-prog7312-part-1-ribaorearabetse
+# prog7312-2026-prog7312-part-2-ribaorearabetse
 
 Demo video: https://youtu.be/krwKFzlkeeE
 
 # Smart-X — IoT Mesh Data Ingestion Gateway
 
-Smart-X is a simulated hybrid IoT mesh ecosystem for monitoring distributed environments (hydroponic farms, utility trackers, smart grid installations). This repository contains **Part 1** of the Portfolio of Evidence: the sensor data ingestion and validation gateway, covering the API backend, the MAUI client dashboard, and the shared domain logic between them.
+Smart-X is a simulated hybrid IoT mesh ecosystem for monitoring distributed environments (hydroponic farms, utility trackers, smart grid installations). This repository contains **Part 2** of the Portfolio of Evidence: sensor ingestion from Part 1, plus the real-time command stream, named queues and dictionaries, and the predictive action engine.
 
 ## Architecture
 
@@ -26,7 +26,8 @@ The solution is split into three projects:
 - **`DeploymentValidator`** — a recursive algorithm validating nested device deployment trees (Facility → Zone → Sub-Zone → Sensor), checking for blank names, duplicate sibling names, and structurally invalid sensor nodes, and reporting every violation found rather than stopping at the first.
 - **`TelemetryBatchProcessor<T>`** — accumulates historical telemetry as a jagged array (`T[][]`), reflecting that real sensor polling cycles can vary in length, and flattens that raw data into optimised `List<TelemetryPacket<T>>` collections.
 - **`TelemetryHistory<T>`** — a custom bounded ring collection (`IReadOnlyList<TelemetryPacket<T>>`) for live ingest. Newest packets overwrite the oldest once the ring is full.
-- **Operator JWT login** — the MAUI client signs in before it can register sensors, upload files, or poll alerts. Demo credentials: `operator` / `SmartX-Demo!`.
+- **Firebase Authentication** — the MAUI client signs in with Firebase email and password (`identitytoolkit` `signInWithPassword`). The API checks the Firebase ID token (`https://securetoken.google.com/{projectId}`). There is no password in this repository. Put the class project's web API key and project id in `SmartX.Client/FirebaseConfig.cs` and `Firebase:ProjectId` in `SmartX.Api/appsettings.json`.
+- **Part 2 collections** — `SmartX.Api/Services/RealtimeStructures.cs` holds `TelemetryQueue`, `CriticalAlertQueue`, `CommandUndoStack`, `DeviceRegistry`, `SensorTimeline`, and `DisconnectedNodes`.
 - **Sensor identity regex** — registrations accept an IEEE MAC (`AA:BB:CC:DD:EE:FF`) or a Smart-X unique id (`SX-NODE01`). Anything else is rejected on the client and the API.
 - **Attachment guards** — uploads are limited to `.jpg`, `.png`, `.txt`, `.log`, `.json`, `.csv` and 2 MB. After save, the gateway reads the file and returns a summary (last log lines, JSON field count, photo size).
 - **Alert aggregation with contextual anomaly visualisation** — the dashboard's dynamic engagement feature. Rather than showing every threshold breach or sensor disconnect as a separate, disconnected notification, `AlertAggregationService` groups alerts by sensor and time-window proximity into single, contextualised incidents — directly implementing the strategy researched and justified in the Part 1 research report.
@@ -40,8 +41,8 @@ The solution is split into three projects:
 
 ### Clone and restore
 ```bash
-git clone TODO-your-repo-url
-cd prog7312-2026-prog7312-part-1-ribaorearabetse
+git clone https://github.com/EMGPRS/prog7312-2026-prog7312-part-2-ribaorearabetse.git
+cd prog7312-2026-prog7312-part-2-ribaorearabetse
 dotnet restore
 ```
 
@@ -71,12 +72,52 @@ dotnet test SmartX.Shared.Tests
 
 ## Using the application
 
-1. Launch the app and sign in as `operator` / `SmartX-Demo!`.
-2. You'll see the Smart-X Gateway landing page with three pillars. Only **Sensor Data Ingestion and Telemetry** is active for Part 1.
-3. Tap through to register a sensor: provide an IEEE MAC (`A4:CF:12:01:AA:01`) or a unique id (`SX-NODE01`), its deployment location (Facility, Zone, and optionally Sub-Zone), and its category (Environmental, Power Consumption, or Actuator).
-4. Once registered, optionally attach a `.jpg`, `.png`, `.txt`, `.log`, `.json` or `.csv` (max 2 MB). The gateway reads the file and shows a summary.
-5. Navigate to the **Live Dashboard** to see grouped, contextualised alerts as the mock telemetry simulator generates readings — including threshold breaches and simulated sensor disconnects.
+1. Create a user in the class Firebase project, then set `FirebaseConfig.ApiKey`, `FirebaseConfig.ProjectId`, and `Firebase:ProjectId`.
+2. Launch the app and sign in with that Firebase email and password.
+3. The home page shows three modules. **Sensor Data Ingestion and Telemetry** and **Real-Time Command Stream and History** are active. **Network Topology and Mesh Routing** stays greyed out for the final PoE.
+4. Register a sensor with an IEEE MAC (`A4:CF:12:01:AA:01`) or a unique id (`SX-NODE01`), or import `samples/devices.txt` from the command stream page.
+5. Open the command stream to watch sparklines, filter by category or alert state, start or stop a pump, toggle a relay, and undo the last override.
+6. Suggested Actions appear after the same pump is started twice while a moisture reading is below 20, and immediately for disconnected devices or out-of-range readings.
+
+## Testing the queues and dictionaries
+
+Automated checks live in `SmartX.Shared.Tests/RealtimeStructureTests.cs`:
+
+```bash
+dotnet test SmartX.Shared.Tests --filter RealtimeStructureTests
+```
+
+The script below starts the API with the test token (used only when `SmartX__AllowTestAuth=true`; the product path still requires Firebase):
+
+```powershell
+./scripts/verify-api.ps1
+```
+
+### Simulate a high-priority alert
+
+A moisture reading of 15 or below, or a power reading of 2000W or above, skips `TelemetryQueue` and is placed on `CriticalAlertQueue`. The processor drains that queue before any normal packet.
+
+1. Start the API with the test token:
+
+```powershell
+$env:SmartX__AllowTestAuth = 'true'
+dotnet run --project SmartX.Api --urls http://localhost:5022
+```
+
+2. In a second terminal, ask the gateway to queue a normal moisture packet and then a 2100W packet before anything is drained:
+
+```powershell
+$headers = @{ Authorization = 'Bearer test-operator' }
+Invoke-RestMethod http://localhost:5022/api/command-stream/priority-demo -Method Post -Headers $headers
+Invoke-RestMethod http://localhost:5022/api/alerts -Headers $headers
+```
+
+3. `processedOrder` lists `critical:AA:BB:CC:DD:EE:02` before `normal:AA:BB:CC:DD:EE:01`. The alerts response includes the 2100W breach for Power Rail A. A moisture value of `10` is the same bypass: `POST /api/telemetry/environmental` with `{"sensorId":"AA:BB:CC:DD:EE:01","value":10}` after the demo sensor exists.
+
+A moisture value of `10` on `POST /api/telemetry/environmental` is the same bypass for a critical moisture drop.
+
+`DeviceRegistry` is a dictionary keyed by MAC: telemetry lookup calls `TryGetValue` and does not scan a list. `SensorTimeline` is a `SortedDictionary` keyed by timestamp, which is what the sparkline reads. `DisconnectedNodes` is a `HashSet`, so a second disconnect warning for the same MAC is ignored.
 
 ## Project status
 
-Part 1 (Research + Implementation) is complete. Real-Time Command Stream and History, and Network Topology and Mesh Routing, are disabled pending Part 2 and the final Portfolio of Evidence respectively.
+Part 1 ingestion and Part 2 command stream are both on the home page. Network Topology and Mesh Routing stays disabled for the final Portfolio of Evidence.

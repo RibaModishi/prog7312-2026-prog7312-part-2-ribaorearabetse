@@ -19,7 +19,7 @@ public partial class LoginPage : ContentPage
 
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
         {
-            ShowFeedback("Enter both a username and a password.");
+            ShowFeedback("Enter the Firebase email and password.");
             return;
         }
 

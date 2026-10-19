@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SmartX.Client.CommandStreamPage"
+             Style="{StaticResource SmartXPage}"
+             Title="Command Stream"
+             Shell.NavBarIsVisible="False">
+
+    <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="16">
+        <Label Text="&#x2190; Home"
+               TextColor="{StaticResource SmartXAccent}">
+            <Label.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnBackTapped" />
+            </Label.GestureRecognizers>
+        </Label>
+
+        <VerticalStackLayout Grid.Row="1" Spacing="6">
+            <Label Text="REAL-TIME COMMAND STREAM" Style="{StaticResource SectionLabel}" />
+            <Label Text="Live devices and overrides" Style="{StaticResource PageTitle}" />
+            <Label x:Name="StatusLabel" Style="{StaticResource PageSubtitle}" Text="Waiting for the gateway." />
+        </VerticalStackLayout>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="8">
+            <Entry x:Name="QueryEntry" Grid.ColumnSpan="2" Placeholder="Search name, MAC, or zone" Style="{StaticResource FormEntry}" />
+            <Button Grid.Column="2" Text="Search" Style="{StaticResource PrimaryButton}" Clicked="OnSearchClicked" />
+            <Picker x:Name="CategoryPicker" Grid.Row="1" Title="Category" />
+            <Picker x:Name="AlertPicker" Grid.Row="1" Grid.Column="1" Title="Alert state" />
+            <Button Grid.Row="1" Grid.Column="2" Text="Import devices" Style="{StaticResource SecondaryButton}" Clicked="OnImportClicked" />
+        </Grid>
+
+        <ScrollView Grid.Row="3">
+            <VerticalStackLayout Spacing="16">
+                <Border Style="{StaticResource PillarCard}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="SUGGESTED ACTIONS" Style="{StaticResource SectionLabel}" />
+                        <Label Text="Automated Insights" Style="{StaticResource PillarTitle}" />
+                        <VerticalStackLayout x:Name="SuggestionsLayout" Spacing="6" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <HorizontalStackLayout Spacing="8">
+                    <Button Text="Undo last command" Style="{StaticResource SecondaryButton}" Clicked="OnUndoClicked" />
+                </HorizontalStackLayout>
+
+                <VerticalStackLayout x:Name="DeviceLayout" Spacing="10" />
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

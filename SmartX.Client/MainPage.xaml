@@ -15,12 +15,28 @@
     <ScrollView HorizontalOptions="Center" MaximumWidthRequest="680">
         <VerticalStackLayout Padding="24,32,24,40" Spacing="28">
 
-            <VerticalStackLayout Spacing="8">
-                <Label Text="SMART-X" Style="{StaticResource SectionLabel}" />
-                <Label Text="Smart-X Gateway" Style="{StaticResource PageTitle}" />
-                <Label Style="{StaticResource PageSubtitle}"
-                       Text="Ingestion and management console for the Smart-X IoT mesh, collecting multi-typed telemetry from distributed sensor nodes." />
-            </VerticalStackLayout>
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+                <Border WidthRequest="72"
+                        HeightRequest="72"
+                        Stroke="{StaticResource SmartXAccent}"
+                        BackgroundColor="#10243A"
+                        StrokeThickness="2"
+                        StrokeShape="RoundRectangle 16">
+                    <Label Text="SX"
+                           FontSize="28"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource SmartXAccent}"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+                </Border>
+                <VerticalStackLayout Spacing="6" VerticalOptions="Center">
+                    <Label Text="SMART-X OPERATIONS" Style="{StaticResource SectionLabel}" />
+                    <Label Text="Smart-X Gateway" Style="{StaticResource PageTitle}" />
+                    <Label x:Name="StatusLabel"
+                           Style="{StaticResource PageSubtitle}"
+                           Text="Signed in. Loading the mesh." />
+                </VerticalStackLayout>
+            </Grid>
 
             <VerticalStackLayout Spacing="14">
 
@@ -47,14 +63,18 @@
                     restyled later.
                 -->
                 <Border Style="{StaticResource PillarCard}"
-                        IsEnabled="False"
-                        Opacity="0.45"
-                        SemanticProperties.Description="Real-Time Command Stream and History. Not yet available.">
+                        Stroke="{StaticResource SmartXAccent}"
+                        SemanticProperties.Description="Real-Time Command Stream and History. Available.">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnCommandStreamTapped" />
+                    </Border.GestureRecognizers>
                     <VerticalStackLayout Spacing="6">
-                        <Label Text="COMING IN PART 2" Style="{StaticResource StatusBadge}" />
+                        <Label Text="AVAILABLE"
+                               Style="{StaticResource StatusBadge}"
+                               TextColor="{StaticResource SmartXAccent}" />
                         <Label Text="Real-Time Command Stream and History"
                                Style="{StaticResource PillarTitle}" />
-                        <Label Text="Coming in Part 2."
+                        <Label Text="Watch live telemetry, filter devices, and issue pump or relay overrides."
                                Style="{StaticResource PillarDescription}" />
                     </VerticalStackLayout>
                 </Border>

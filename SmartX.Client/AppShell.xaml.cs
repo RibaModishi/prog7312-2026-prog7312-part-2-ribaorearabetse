@@ -10,5 +10,6 @@ public partial class AppShell : Shell
 		// explicitly, otherwise the navigation throws at runtime instead of failing at build.
 		Routing.RegisterRoute("registration", typeof(SensorRegistrationPage));
 		Routing.RegisterRoute("dashboard", typeof(AlertDashboardPage));
+		Routing.RegisterRoute("command-stream", typeof(CommandStreamPage));
 	}
 }
