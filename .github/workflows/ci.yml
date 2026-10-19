@@ -148,5 +148,5 @@ jobs:
 
       - name: Build Windows client
         run: |
-          dotnet restore SmartX.Client/SmartX.Client.csproj
-          dotnet build SmartX.Client/SmartX.Client.csproj -f net10.0-windows10.0.19041.0 --configuration Release --no-restore
+          dotnet restore SmartX.Client/SmartX.Client.csproj -f net10.0-windows10.0.19041.0 -r win-x64
+          dotnet build SmartX.Client/SmartX.Client.csproj -f net10.0-windows10.0.19041.0 -r win-x64 --configuration Release --no-restore
