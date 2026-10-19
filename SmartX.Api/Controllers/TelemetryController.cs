@@ -17,10 +17,10 @@ namespace SmartX.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/telemetry")]
-public class TelemetryController(SmartXStore store, AlertAggregationService alerts) : ControllerBase
+public class TelemetryController(SmartXStore store, RealtimeStructures realtime, TelemetryQueueProcessor processor) : ControllerBase
 {
     [HttpPost("environmental")]
-    public ActionResult<TelemetryPacket<float>> PostEnvironmental([FromBody] ReadingRequest<float> request)
+    public ActionResult PostEnvironmental([FromBody] ReadingRequest<float> request, [FromQuery] bool drain = true)
     {
         var rejection = Reject(request.SensorId, SensorCategory.Environmental, out var sensor);
         if (rejection is not null)
@@ -28,13 +28,17 @@ public class TelemetryController(SmartXStore store, AlertAggregationService aler
             return rejection;
         }
 
-        var packet = store.RecordEnvironmental(request.SensorId, request.Value);
-        alerts.CheckThreshold(sensor.MacAddress, sensor.DeploymentPath, sensor.Category, request.Value);
-        return Ok(packet);
+        realtime.EnqueueReading(sensor, request.Value);
+        if (drain)
+        {
+            processor.DrainPending();
+        }
+
+        return Ok(new { sensorId = sensor.MacAddress, queued = true, critical = RealtimeStructures.IsCritical(sensor.Category, request.Value) });
     }
 
     [HttpPost("power")]
-    public ActionResult<TelemetryPacket<int>> PostPower([FromBody] ReadingRequest<int> request)
+    public ActionResult PostPower([FromBody] ReadingRequest<int> request, [FromQuery] bool drain = true)
     {
         var rejection = Reject(request.SensorId, SensorCategory.PowerConsumption, out var sensor);
         if (rejection is not null)
@@ -42,16 +46,27 @@ public class TelemetryController(SmartXStore store, AlertAggregationService aler
             return rejection;
         }
 
-        var packet = store.RecordPower(request.SensorId, request.Value);
-        alerts.CheckThreshold(sensor.MacAddress, sensor.DeploymentPath, sensor.Category, request.Value);
-        return Ok(packet);
+        realtime.EnqueueReading(sensor, request.Value);
+        if (drain)
+        {
+            processor.DrainPending();
+        }
+
+        return Ok(new { sensorId = sensor.MacAddress, queued = true, critical = RealtimeStructures.IsCritical(sensor.Category, request.Value) });
     }
 
     [HttpPost("actuator")]
-    public ActionResult<TelemetryPacket<bool>> PostActuator([FromBody] ReadingRequest<bool> request)
+    public ActionResult PostActuator([FromBody] ReadingRequest<bool> request)
     {
-        var rejection = Reject(request.SensorId, SensorCategory.Actuator);
-        return rejection ?? Ok(store.RecordActuator(request.SensorId, request.Value));
+        var rejection = Reject(request.SensorId, SensorCategory.Actuator, out var sensor);
+        if (rejection is not null)
+        {
+            return rejection;
+        }
+
+        realtime.EnqueueReading(sensor, request.Value ? 1 : 0);
+        processor.DrainPending();
+        return Ok(new { sensorId = sensor.MacAddress, queued = true, critical = false });
     }
 
     [HttpPost("environmental/{sensorId}/batches")]
@@ -63,7 +78,17 @@ public class TelemetryController(SmartXStore store, AlertAggregationService aler
             return rejection;
         }
 
-        store.AddEnvironmentalBatch(sensorId, readings);
+        if (!store.TryGetSensor(sensorId, out var sensor))
+        {
+            return NotFound(new { error = $"Sensor '{sensorId}' is not registered." });
+        }
+
+        foreach (var reading in readings)
+        {
+            realtime.EnqueueReading(sensor, reading);
+        }
+
+        processor.DrainPending();
         return Ok(new { sensorId, readingsAccepted = readings.Length });
     }
 
@@ -76,7 +101,17 @@ public class TelemetryController(SmartXStore store, AlertAggregationService aler
             return rejection;
         }
 
-        store.AddPowerBatch(sensorId, readings);
+        if (!store.TryGetSensor(sensorId, out var sensor))
+        {
+            return NotFound(new { error = $"Sensor '{sensorId}' is not registered." });
+        }
+
+        foreach (var reading in readings)
+        {
+            realtime.EnqueueReading(sensor, reading);
+        }
+
+        processor.DrainPending();
         return Ok(new { sensorId, readingsAccepted = readings.Length });
     }
 
@@ -89,7 +124,17 @@ public class TelemetryController(SmartXStore store, AlertAggregationService aler
             return rejection;
         }
 
-        store.AddActuatorBatch(sensorId, readings);
+        if (!store.TryGetSensor(sensorId, out var sensor))
+        {
+            return NotFound(new { error = $"Sensor '{sensorId}' is not registered." });
+        }
+
+        foreach (var reading in readings)
+        {
+            realtime.EnqueueReading(sensor, reading ? 1 : 0);
+        }
+
+        processor.DrainPending();
         return Ok(new { sensorId, readingsAccepted = readings.Length });
     }
 
@@ -131,10 +176,12 @@ public class TelemetryController(SmartXStore store, AlertAggregationService aler
             return BadRequest(new { error = "A telemetry reading must reference a registered sensor." });
         }
 
-        if (!store.TryGetSensor(sensorId, out sensor))
+        if (!realtime.TryGetDevice(sensorId, out sensor) && !store.TryGetSensor(sensorId, out sensor))
         {
             return NotFound(new { error = $"Sensor '{sensorId}' is not registered." });
         }
+
+        realtime.IndexDevice(sensor);
 
         if (sensor.Category != expectedCategory)
         {

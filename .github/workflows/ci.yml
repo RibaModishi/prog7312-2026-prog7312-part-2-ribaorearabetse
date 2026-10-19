@@ -52,6 +52,7 @@ jobs:
           set -euo pipefail
           export ASPNETCORE_ENVIRONMENT=Development
           export ASPNETCORE_URLS=http://127.0.0.1:5022
+          export SmartX__AllowTestAuth=true
 
           # HTTPS redirection has nothing to redirect to under ASPNETCORE_URLS=http
           # only; the middleware warning is cosmetic and not a smoke failure.
@@ -82,12 +83,7 @@ jobs:
             fi
           done
 
-          curl -sf -X POST "http://127.0.0.1:5022/api/auth/login" \
-            -H "Content-Type: application/json" \
-            --data '{"username":"operator","password":"SmartX-Demo!"}' \
-            | tee /tmp/login.json
-          TOKEN=$(python3 -c "import json; print(json.load(open('/tmp/login.json'))['token'])")
-          AUTH=( -H "Authorization: Bearer ${TOKEN}" )
+          AUTH=( -H "Authorization: Bearer test-operator" )
 
           printf '%s\n' '{"macAddress":"abc","facilityName":"CI Lab","zoneName":"Zone 1","category":"PowerConsumption"}' > /tmp/bad-mac.json
           curl -s -o /tmp/bad-mac-response.json -w '%{http_code}' -X POST "http://127.0.0.1:5022/api/sensors" \

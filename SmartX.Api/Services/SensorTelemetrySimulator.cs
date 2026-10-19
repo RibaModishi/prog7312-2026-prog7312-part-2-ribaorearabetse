@@ -15,7 +15,7 @@ namespace SmartX.Api.Services;
 /// </summary>
 public class SensorTelemetrySimulator(
     SmartXStore store,
-    AlertAggregationService alerts,
+    RealtimeStructures realtime,
     ILogger<SensorTelemetrySimulator> logger) : BackgroundService
 {
     // Same 5-second nominal poll the disconnect watcher treats as one missed cycle.
@@ -66,22 +66,20 @@ public class SensorTelemetrySimulator(
 
     private void Publish(SensorRecord sensor)
     {
+        realtime.IndexDevice(sensor);
+
         switch (sensor.Category)
         {
             case SensorCategory.Environmental:
-                var moisture = NextEnvironmental();
-                store.RecordEnvironmental(sensor.MacAddress, moisture);
-                alerts.CheckThreshold(sensor.MacAddress, sensor.DeploymentPath, sensor.Category, moisture);
+                realtime.EnqueueReading(sensor, NextEnvironmental());
                 break;
 
             case SensorCategory.PowerConsumption:
-                var watts = NextPower();
-                store.RecordPower(sensor.MacAddress, watts);
-                alerts.CheckThreshold(sensor.MacAddress, sensor.DeploymentPath, sensor.Category, watts);
+                realtime.EnqueueReading(sensor, NextPower());
                 break;
 
             case SensorCategory.Actuator:
-                store.RecordActuator(sensor.MacAddress, Random.Shared.Next(2) == 1);
+                realtime.EnqueueReading(sensor, Random.Shared.Next(2));
                 break;
         }
     }

@@ -9,7 +9,7 @@ namespace SmartX.Api.Services;
 /// a fresh alert just because the node is still silent — and the episode ends the moment a
 /// reading arrives again.
 /// </summary>
-public class SensorDisconnectWatcher(SmartXStore store, AlertAggregationService alerts) : BackgroundService
+public class SensorDisconnectWatcher(SmartXStore store, AlertAggregationService alerts, RealtimeStructures realtime) : BackgroundService
 {
     /// <summary>
     /// Tunable. Frequent enough to notice a drop within a couple of poll cycles, sparse enough
@@ -22,8 +22,6 @@ public class SensorDisconnectWatcher(SmartXStore store, AlertAggregationService 
     /// and a node that has actually left the mesh is not.
     /// </summary>
     public static readonly TimeSpan OverdueAfter = TimeSpan.FromSeconds(20);
-
-    private readonly HashSet<string> _outstandingDisconnects = new(StringComparer.OrdinalIgnoreCase);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -46,11 +44,11 @@ public class SensorDisconnectWatcher(SmartXStore store, AlertAggregationService 
                 // A fresh reading ends the episode. The next silence is a new disconnect, not a
                 // continuation of this one, which is why the sensor is removed from the set
                 // rather than left marked.
-                _outstandingDisconnects.Remove(sensor.MacAddress);
+                realtime.ClearDisconnected(sensor.MacAddress);
                 continue;
             }
 
-            if (!_outstandingDisconnects.Add(sensor.MacAddress))
+            if (!realtime.MarkDisconnected(sensor.MacAddress))
             {
                 continue;
             }

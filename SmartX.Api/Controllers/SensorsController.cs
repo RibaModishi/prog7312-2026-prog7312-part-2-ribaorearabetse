@@ -4,6 +4,7 @@ using SmartX.Api.Services;
 using SmartX.Shared.Attachments;
 using SmartX.Shared.Contracts;
 using SmartX.Shared.Deployment;
+using SmartX.Shared.Telemetry;
 
 namespace SmartX.Api.Controllers;
 
@@ -16,7 +17,7 @@ namespace SmartX.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/sensors")]
-public class SensorsController(SmartXStore store, IWebHostEnvironment environment) : ControllerBase
+public class SensorsController(SmartXStore store, RealtimeStructures realtime, IWebHostEnvironment environment) : ControllerBase
 {
     [HttpPost]
     public ActionResult<SensorRecord> Register([FromBody] SensorRegistrationRequest request)
@@ -28,6 +29,7 @@ public class SensorsController(SmartXStore store, IWebHostEnvironment environmen
             return BadRequest(new { violations = result.Violations });
         }
 
+        realtime.IndexDevice(result.Sensor!);
         return CreatedAtAction(nameof(GetById), new { sensorId = result.Sensor!.MacAddress }, result.Sensor);
     }
 
@@ -91,6 +93,67 @@ public class SensorsController(SmartXStore store, IWebHostEnvironment environmen
             lineCount = summary.LineCount,
             fieldCount = summary.FieldCount
         });
+    }
+
+    [HttpPost("import")]
+    public async Task<ActionResult<object>> ImportDevices(IFormFile file)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new { error = "Choose a .txt file with one device per line." });
+        }
+
+        if (!string.Equals(Path.GetExtension(file.FileName), ".txt", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { error = "Device import expects a .txt file." });
+        }
+
+        using var reader = new StreamReader(file.OpenReadStream());
+        var loaded = new List<string>();
+        var errors = new List<string>();
+        var lineNumber = 0;
+
+        while (await reader.ReadLineAsync() is { } line)
+        {
+            lineNumber++;
+            if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith('#'))
+            {
+                continue;
+            }
+
+            var parts = line.Split('|');
+            if (parts.Length < 5)
+            {
+                errors.Add($"Line {lineNumber} must be MAC|Name|Category|Facility|Zone.");
+                continue;
+            }
+
+            if (!Enum.TryParse<SensorCategory>(parts[2].Trim(), ignoreCase: true, out var category))
+            {
+                errors.Add($"Line {lineNumber} has an unknown category '{parts[2].Trim()}'.");
+                continue;
+            }
+
+            var result = store.RegisterSensor(new SensorRegistrationRequest
+            {
+                MacAddress = parts[0].Trim(),
+                DisplayName = parts[1].Trim(),
+                Category = category,
+                FacilityName = parts[3].Trim(),
+                ZoneName = parts[4].Trim()
+            });
+
+            if (!result.IsSuccess)
+            {
+                errors.Add($"Line {lineNumber}: {string.Join(" ", result.Violations)}");
+                continue;
+            }
+
+            realtime.IndexDevice(result.Sensor!);
+            loaded.Add(result.Sensor!.MacAddress);
+        }
+
+        return Ok(new { loaded, errors, deviceCount = realtime.Devices().Count });
     }
 
     [HttpGet("{sensorId}/attachments")]

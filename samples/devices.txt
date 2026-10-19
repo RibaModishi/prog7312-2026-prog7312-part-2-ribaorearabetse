@@ -1,0 +1,5 @@
+# MAC|Display name|Category|Facility|Zone
+AA:BB:CC:DD:EE:10|Moisture Sensor B|Environmental|Greenhouse|Zone 1
+AA:BB:CC:DD:EE:11|Power Rail A|PowerConsumption|Greenhouse|Zone 1
+AA:BB:CC:DD:EE:20|Pump A|Actuator|Greenhouse|Zone 1
+AA:BB:CC:DD:EE:21|Smart Relay 1|Actuator|Greenhouse|Zone 1

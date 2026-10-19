@@ -90,6 +90,7 @@ public class SmartXStore
             var record = new SensorRecord
             {
                 MacAddress = macAddress,
+                DisplayName = request.DisplayName?.Trim() ?? string.Empty,
                 Category = request.Category,
                 DeploymentPath = BuildDeploymentPath(request)
             };

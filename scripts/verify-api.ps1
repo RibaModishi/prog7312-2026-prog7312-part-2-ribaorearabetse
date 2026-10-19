@@ -96,6 +96,7 @@ function Start-Api {
     $project = Join-Path $repoRoot 'SmartX.Api/SmartX.Api.csproj'
 
     Write-Host "Starting API on $BaseUrl ..." -ForegroundColor Yellow
+    $env:SmartX__AllowTestAuth = 'true'
     $script:ApiProcess = Start-Process -FilePath 'dotnet' `
         -ArgumentList "run --project `"$project`" --urls $BaseUrl" `
         -PassThru -NoNewWindow `
@@ -150,13 +151,13 @@ try {
     }
     Assert-Status 'Reject registration without a token' $denied 401
 
-    $badLogin = Invoke-Api POST '/api/auth/login' @{ username = 'operator'; password = 'wrong' }
-    Assert-Status 'Reject a bad password' $badLogin 401
+    $script:Token = 'not-a-firebase-token'
+    $badLogin = Invoke-Api GET '/api/sensors'
+    Assert-Status 'Reject a token that is not the test operator' $badLogin 401
 
-    $login = Invoke-Api POST '/api/auth/login' @{ username = 'operator'; password = 'SmartX-Demo!' }
-    Assert-Status 'Issue an operator token' $login 200
-    $script:Token = ($login.Content | ConvertFrom-Json).token
-    Assert-That -Name 'Login response includes a JWT' -Condition (-not [string]::IsNullOrWhiteSpace($script:Token))
+    $script:Token = 'test-operator'
+    $login = Invoke-Api GET '/api/sensors'
+    Assert-Status 'Accept the automated test token' $login 200
 
     # --- registration -------------------------------------------------------------------------
 
