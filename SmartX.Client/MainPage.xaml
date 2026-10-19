@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="SmartX.Client.MainPage"
@@ -12,31 +12,35 @@
         of a narrow phone screen. The cap belongs on the ScrollView: a capped, centred child inside
         a ScrollView is measured against an unconstrained width and overflows the viewport.
     -->
-    <ScrollView HorizontalOptions="Center" MaximumWidthRequest="680">
-        <VerticalStackLayout Padding="24,32,24,40" Spacing="28">
+    <ScrollView HorizontalOptions="Center" MaximumWidthRequest="720">
+        <VerticalStackLayout Padding="28,36,28,48" Spacing="28">
 
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
-                <Border WidthRequest="72"
-                        HeightRequest="72"
-                        Stroke="{StaticResource SmartXAccent}"
-                        BackgroundColor="#10243A"
-                        StrokeThickness="2"
-                        StrokeShape="RoundRectangle 16">
-                    <Label Text="SX"
-                           FontSize="28"
-                           FontAttributes="Bold"
-                           TextColor="{StaticResource SmartXAccent}"
-                           HorizontalOptions="Center"
-                           VerticalOptions="Center" />
-                </Border>
-                <VerticalStackLayout Spacing="6" VerticalOptions="Center">
-                    <Label Text="SMART-X OPERATIONS" Style="{StaticResource SectionLabel}" />
-                    <Label Text="Smart-X Gateway" Style="{StaticResource PageTitle}" />
+            <Border StrokeThickness="0"
+                    HeightRequest="210"
+                    StrokeShape="RoundRectangle 24">
+                <Grid>
+                    <Image Source="greenhouse_hero.jpg"
+                           Aspect="AspectFill"
+                           HeightRequest="210" />
+                    <Border BackgroundColor="#660E1612"
+                            StrokeThickness="0"
+                            VerticalOptions="End"
+                            Padding="16,12">
+                        <Label Text="The greenhouse, this evening"
+                               TextColor="White"
+                               FontAttributes="Bold"
+                               FontSize="16" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <VerticalStackLayout Spacing="4">
+                    <Label Text="SMART-X" Style="{StaticResource SectionLabel}" />
+                    <Label Text="Good to see you" Style="{StaticResource PageTitle}" />
                     <Label x:Name="StatusLabel"
                            Style="{StaticResource PageSubtitle}"
-                           Text="Signed in. Loading the mesh." />
-                </VerticalStackLayout>
-            </Grid>
+                           Text="Checking the greenhouse." />
+            </VerticalStackLayout>
 
             <VerticalStackLayout Spacing="14">
 
@@ -46,15 +50,20 @@
                     <Border.GestureRecognizers>
                         <TapGestureRecognizer Tapped="OnIngestionTapped" />
                     </Border.GestureRecognizers>
-                    <VerticalStackLayout Spacing="6">
-                        <Label Text="AVAILABLE"
-                               Style="{StaticResource StatusBadge}"
-                               TextColor="{StaticResource SmartXAccent}" />
-                        <Label Text="Sensor Data Ingestion and Telemetry"
-                               Style="{StaticResource PillarTitle}" />
-                        <Label Text="Register sensors, ingest telemetry, and monitor the gateway."
-                               Style="{StaticResource PillarDescription}" />
-                    </VerticalStackLayout>
+                    <Grid ColumnDefinitions="88,*" ColumnSpacing="14">
+                        <Border StrokeThickness="0" StrokeShape="RoundRectangle 14" HeightRequest="88">
+                            <Image Source="moisture_plant.jpg" Aspect="AspectFill" HeightRequest="88" WidthRequest="88" />
+                        </Border>
+                        <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
+                            <Label Text="PART 1  ·  OPEN"
+                                   Style="{StaticResource StatusBadge}"
+                                   TextColor="{StaticResource SmartXAccent}" />
+                            <Label Text="Add sensors and watch alerts"
+                                   Style="{StaticResource PillarTitle}" />
+                            <Label Text="Register a device, attach a file, and see when a reading crosses the line."
+                                   Style="{StaticResource PillarDescription}" />
+                        </VerticalStackLayout>
+                    </Grid>
                 </Border>
 
                 <!--
@@ -68,28 +77,38 @@
                     <Border.GestureRecognizers>
                         <TapGestureRecognizer Tapped="OnCommandStreamTapped" />
                     </Border.GestureRecognizers>
-                    <VerticalStackLayout Spacing="6">
-                        <Label Text="AVAILABLE"
-                               Style="{StaticResource StatusBadge}"
-                               TextColor="{StaticResource SmartXAccent}" />
-                        <Label Text="Real-Time Command Stream and History"
-                               Style="{StaticResource PillarTitle}" />
-                        <Label Text="Watch live telemetry, filter devices, and issue pump or relay overrides."
-                               Style="{StaticResource PillarDescription}" />
-                    </VerticalStackLayout>
+                    <Grid ColumnDefinitions="88,*" ColumnSpacing="14">
+                        <Border StrokeThickness="0" StrokeShape="RoundRectangle 14" HeightRequest="88">
+                            <Image Source="water_pump.jpg" Aspect="AspectFill" HeightRequest="88" WidthRequest="88" />
+                        </Border>
+                        <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
+                            <Label Text="PART 2  ·  OPEN"
+                                   Style="{StaticResource StatusBadge}"
+                                   TextColor="{StaticResource SmartXAccent}" />
+                            <Label Text="Run the greenhouse"
+                                   Style="{StaticResource PillarTitle}" />
+                            <Label Text="See live moisture and power, switch pumps and relays, and undo the last command."
+                                   Style="{StaticResource PillarDescription}" />
+                        </VerticalStackLayout>
+                    </Grid>
                 </Border>
 
                 <Border Style="{StaticResource PillarCard}"
                         IsEnabled="False"
                         Opacity="0.45"
                         SemanticProperties.Description="Network Topology and Mesh Routing. Not yet available.">
-                    <VerticalStackLayout Spacing="6">
-                        <Label Text="COMING IN THE FINAL POE" Style="{StaticResource StatusBadge}" />
-                        <Label Text="Network Topology and Mesh Routing"
-                               Style="{StaticResource PillarTitle}" />
-                        <Label Text="Coming in the final Portfolio of Evidence."
-                               Style="{StaticResource PillarDescription}" />
-                    </VerticalStackLayout>
+                    <Grid ColumnDefinitions="88,*" ColumnSpacing="14">
+                        <Border StrokeThickness="0" StrokeShape="RoundRectangle 14" HeightRequest="88" Opacity="0.7">
+                            <Image Source="quiet_bench.jpg" Aspect="AspectFill" HeightRequest="88" WidthRequest="88" />
+                        </Border>
+                        <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
+                            <Label Text="LATER" Style="{StaticResource StatusBadge}" />
+                            <Label Text="Network map"
+                                   Style="{StaticResource PillarTitle}" />
+                            <Label Text="Mesh routing arrives in the final portfolio. This room stays closed for now."
+                                   Style="{StaticResource PillarDescription}" />
+                        </VerticalStackLayout>
+                    </Grid>
                 </Border>
 
             </VerticalStackLayout>

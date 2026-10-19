@@ -9,11 +9,19 @@
     <ScrollView HorizontalOptions="Center" MaximumWidthRequest="680">
         <VerticalStackLayout Padding="24,32,24,40" Spacing="24">
 
-            <VerticalStackLayout Spacing="8">
-                <Label Text="SMART-X" Style="{StaticResource SectionLabel}" />
-                <Label Text="Operator Sign In" Style="{StaticResource PageTitle}" />
-                <Label Style="{StaticResource PageSubtitle}"
-                       Text="Sign in with the Firebase account for this gateway. The password is checked by Firebase, not stored in the app." />
+            <Border StrokeThickness="0"
+                    HeightRequest="190"
+                    StrokeShape="RoundRectangle 22">
+                <Image Source="greenhouse_hero.jpg"
+                       Aspect="AspectFill"
+                       HeightRequest="190" />
+            </Border>
+
+            <VerticalStackLayout Spacing="4">
+                    <Label Text="SMART-X" Style="{StaticResource SectionLabel}" />
+                    <Label Text="Welcome back" Style="{StaticResource PageTitle}" />
+                    <Label Style="{StaticResource PageSubtitle}"
+                           Text="Use the email and password from the Smart-X Firebase project." />
             </VerticalStackLayout>
 
             <Border Style="{StaticResource PillarCard}">
@@ -39,7 +47,7 @@
                         <Button x:Name="SignInButton"
                                 Grid.Column="0"
                                 Style="{StaticResource PrimaryButton}"
-                                Text="Sign In"
+                                Text="Sign in"
                                 Clicked="OnSignInClicked" />
                         <ActivityIndicator x:Name="SignInSpinner"
                                            Grid.Column="1"

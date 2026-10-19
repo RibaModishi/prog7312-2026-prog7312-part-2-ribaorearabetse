@@ -7,16 +7,16 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
 
-    <Color x:Key="SmartXBackground">#0B1220</Color>
-    <Color x:Key="SmartXSurface">#16202E</Color>
-    <Color x:Key="SmartXBorder">#243044</Color>
-    <Color x:Key="SmartXAccent">#2DD4BF</Color>
-    <Color x:Key="SmartXAccentSoft">#134E4A</Color>
-    <Color x:Key="SmartXTextPrimary">#E6EDF3</Color>
-    <Color x:Key="SmartXTextSecondary">#8B9AAD</Color>
-    <Color x:Key="SmartXDanger">#F87171</Color>
-    <Color x:Key="SmartXWarning">#FBBF24</Color>
-    <Color x:Key="SmartXFieldBackground">#0F1825</Color>
+    <Color x:Key="SmartXBackground">#101614</Color>
+    <Color x:Key="SmartXSurface">#1B2922</Color>
+    <Color x:Key="SmartXBorder">#31483C</Color>
+    <Color x:Key="SmartXAccent">#8FCB9B</Color>
+    <Color x:Key="SmartXAccentSoft">#1E3A2A</Color>
+    <Color x:Key="SmartXTextPrimary">#F4F7F2</Color>
+    <Color x:Key="SmartXTextSecondary">#A8B8AE</Color>
+    <Color x:Key="SmartXDanger">#E07A7A</Color>
+    <Color x:Key="SmartXWarning">#E2B657</Color>
+    <Color x:Key="SmartXFieldBackground">#121C18</Color>
 
     <Style x:Key="SmartXPage" TargetType="ContentPage">
         <Setter Property="BackgroundColor" Value="{StaticResource SmartXBackground}" />
@@ -47,7 +47,12 @@
         <Setter Property="Padding" Value="22,20" />
         <Setter Property="StrokeShape">
             <Setter.Value>
-                <RoundRectangle CornerRadius="14" />
+                <RoundRectangle CornerRadius="16" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="Black" Offset="0,10" Radius="24" Opacity="0.28" />
             </Setter.Value>
         </Setter>
     </Style>
@@ -91,7 +96,7 @@
 
     <Style x:Key="PrimaryButton" TargetType="Button">
         <Setter Property="BackgroundColor" Value="{StaticResource SmartXAccent}" />
-        <Setter Property="TextColor" Value="#062925" />
+        <Setter Property="TextColor" Value="#14241B" />
         <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="FontSize" Value="15" />
         <Setter Property="HeightRequest" Value="48" />

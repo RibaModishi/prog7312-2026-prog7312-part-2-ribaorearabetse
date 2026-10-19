@@ -12,6 +12,7 @@ public partial class AlertDashboardPage : ContentPage
     private IDispatcherTimer? _pollTimer;
     private CancellationTokenSource? _lifetime;
     private bool _isRefreshing;
+    private string _snapshot = string.Empty;
 
     public AlertDashboardPage(SmartXApiClient apiClient)
     {
@@ -25,7 +26,7 @@ public partial class AlertDashboardPage : ContentPage
 
         _lifetime = new CancellationTokenSource();
         StartPolling();
-        _ = RefreshAsync();
+        _ = RefreshAsync(showSpinner: false);
     }
 
     protected override void OnDisappearing()
@@ -43,10 +44,10 @@ public partial class AlertDashboardPage : ContentPage
         await Shell.Current.GoToAsync("..");
 
     private async void OnRefreshClicked(object? sender, EventArgs e) =>
-        await RefreshAsync();
+        await RefreshAsync(showSpinner: true);
 
     private async void OnPollTick(object? sender, EventArgs e) =>
-        await RefreshAsync();
+        await RefreshAsync(showSpinner: false);
 
     private void StartPolling()
     {
@@ -72,7 +73,7 @@ public partial class AlertDashboardPage : ContentPage
         _pollTimer = null;
     }
 
-    private async Task RefreshAsync()
+    private async Task RefreshAsync(bool showSpinner)
     {
         if (_isRefreshing)
         {
@@ -81,7 +82,10 @@ public partial class AlertDashboardPage : ContentPage
 
         var token = _lifetime?.Token ?? CancellationToken.None;
         _isRefreshing = true;
-        SetBusy(true);
+        if (showSpinner)
+        {
+            SetBusy(true);
+        }
 
         try
         {
@@ -99,16 +103,27 @@ public partial class AlertDashboardPage : ContentPage
                 return;
             }
 
-            AlertList.ItemsSource = outcome.Groups.ToList();
+            var snapshot = string.Join("|", outcome.Groups.Select(group =>
+                $"{group.SensorId}:{group.Severity}:{group.Alerts.Count}:{group.WindowEnd:O}"));
+            if (snapshot != _snapshot)
+            {
+                _snapshot = snapshot;
+                AlertList.ItemsSource = outcome.Groups.ToList();
+            }
+
             StatusLabel.TextColor = (Color)Application.Current!.Resources["SmartXTextSecondary"];
-            StatusLabel.Text = outcome.Groups.Count == 0
-                ? $"Updated {DateTime.Now:HH:mm:ss} — no open groups."
-                : $"Updated {DateTime.Now:HH:mm:ss} — {outcome.Groups.Count} open group(s).";
+            var summary = outcome.Groups.Count == 0
+                ? "No open incidents. The greenhouse is quiet."
+                : $"{outcome.Groups.Count} open incident{(outcome.Groups.Count == 1 ? "" : "s")}.";
+            if (StatusLabel.Text != summary)
+            {
+                StatusLabel.Text = summary;
+            }
         }
         finally
         {
             _isRefreshing = false;
-            if (!token.IsCancellationRequested)
+            if (showSpinner && !token.IsCancellationRequested)
             {
                 SetBusy(false);
             }

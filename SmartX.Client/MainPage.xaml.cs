@@ -21,7 +21,9 @@ public partial class MainPage : ContentPage
             var devices = await _api.CountSensorsAsync();
             var alerts = await _api.GetActiveAlertsAsync();
             var open = alerts.IsSuccess ? alerts.Groups.Count : 0;
-            StatusLabel.Text = $"{devices} registered devices · {open} open alert groups";
+            StatusLabel.Text = open == 0
+                ? $"{devices} devices on the estate. Nothing is waiting on you."
+                : $"{devices} devices on the estate. {open} incident{(open == 1 ? "" : "s")} still open.";
         }
         catch (Exception)
         {

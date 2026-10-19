@@ -10,7 +10,7 @@
     <Grid HorizontalOptions="Center"
           MaximumWidthRequest="680"
           Padding="24,24,24,24"
-          RowDefinitions="Auto,Auto,*,Auto"
+          RowDefinitions="Auto,Auto,Auto,*,Auto"
           RowSpacing="16">
 
         <Label Grid.Row="0"
@@ -22,12 +22,19 @@
             </Label.GestureRecognizers>
         </Label>
 
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <Border Grid.Row="1"
+                StrokeThickness="0"
+                HeightRequest="140"
+                StrokeShape="RoundRectangle 20">
+            <Image Source="quiet_bench.jpg" Aspect="AspectFill" HeightRequest="140" />
+        </Border>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
             <VerticalStackLayout Grid.Column="0" Spacing="8">
-                <Label Text="SENSOR DATA INGESTION" Style="{StaticResource SectionLabel}" />
-                <Label Text="Live Alert Dashboard" Style="{StaticResource PageTitle}" />
+                <Label Text="SENSOR INGESTION" Style="{StaticResource SectionLabel}" />
+                <Label Text="Open incidents" Style="{StaticResource PageTitle}" />
                 <Label Style="{StaticResource PageSubtitle}"
-                       Text="Grouped incidents from the mesh — each card is one sensor's open time window, not a flat list of every reading that crossed a line." />
+                       Text="Each card is one device and the readings that crossed a line together." />
             </VerticalStackLayout>
 
             <VerticalStackLayout Grid.Column="1"
@@ -46,12 +53,13 @@
         </Grid>
 
         <CollectionView x:Name="AlertList"
-                        Grid.Row="2"
+                        Grid.Row="3"
                         SelectionMode="None"
+                        BackgroundColor="{StaticResource SmartXBackground}"
                         ItemsUpdatingScrollMode="KeepItemsInView">
             <CollectionView.EmptyView>
                 <Border Style="{StaticResource PillarCard}" Margin="0,24,0,0">
-                    <Label Text="No active alerts — the mesh is quiet."
+                    <Label Text="Nothing needs you right now."
                            Style="{StaticResource PageSubtitle}"
                            HorizontalTextAlignment="Center" />
                 </Border>
@@ -129,7 +137,7 @@
         </CollectionView>
 
         <Label x:Name="StatusLabel"
-               Grid.Row="3"
+               Grid.Row="4"
                Style="{StaticResource FieldHint}"
                HorizontalTextAlignment="Center" />
     </Grid>

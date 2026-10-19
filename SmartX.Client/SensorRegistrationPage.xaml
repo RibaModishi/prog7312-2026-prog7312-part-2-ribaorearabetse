@@ -40,11 +40,15 @@
                 </Label>
             </Grid>
 
+            <Border StrokeThickness="0" HeightRequest="160" StrokeShape="RoundRectangle 20">
+                <Image Source="moisture_plant.jpg" Aspect="AspectFill" HeightRequest="160" />
+            </Border>
+
             <VerticalStackLayout Spacing="8">
-                <Label Text="SENSOR DATA INGESTION" Style="{StaticResource SectionLabel}" />
-                <Label Text="Register a Sensor" Style="{StaticResource PageTitle}" />
+                <Label Text="ADD A DEVICE" Style="{StaticResource SectionLabel}" />
+                <Label Text="Register a sensor" Style="{StaticResource PageTitle}" />
                 <Label Style="{StaticResource PageSubtitle}"
-                       Text="Attach a node to the deployment tree. The gateway validates the whole estate before accepting it, so any structural problem is reported before the sensor is recorded." />
+                       Text="Give the device a name the gateway can trust. If the location does not fit the estate, you will see every problem before it is saved." />
             </VerticalStackLayout>
 
             <Border Style="{StaticResource PillarCard}">
