@@ -31,7 +31,7 @@ The solution is split into three projects:
 - **Sensor identity regex** — registrations accept an IEEE MAC (`AA:BB:CC:DD:EE:FF`) or a Smart-X unique id (`SX-NODE01`). Anything else is rejected on the client and the API.
 - **Attachment guards** — uploads are limited to `.jpg`, `.png`, `.txt`, `.log`, `.json`, `.csv` and 2 MB. After save, the gateway reads the file and returns a summary (last log lines, JSON field count, photo size).
 - **Alert aggregation with contextual anomaly visualisation** — the dashboard's dynamic engagement feature. Rather than showing every threshold breach or sensor disconnect as a separate, disconnected notification, `AlertAggregationService` groups alerts by sensor and time-window proximity into single, contextualised incidents — directly implementing the strategy researched and justified in the Part 1 research report.
-- **Mock telemetry simulation** — since no physical ESP32 hardware is used, `SensorTelemetrySimulator` (a background service) publishes realistic mock readings through the same ingestion path real hardware would use, including occasional threshold breaches and dropped polling cycles, to exercise the system under realistic conditions.
+- **Mock telemetry simulation** — `SensorTelemetrySimulator` POSTs to `api/telemetry/environmental`, `api/telemetry/power`, and `api/telemetry/actuator`, the same endpoints a physical device calls. Some cycles are skipped so a device can show as disconnected, and some readings breach the normal or critical thresholds.
 
 ## Getting started
 
@@ -72,12 +72,12 @@ dotnet test SmartX.Shared.Tests
 
 ## Using the application
 
-1. Create a user in the class Firebase project, then set `FirebaseConfig.ApiKey`, `FirebaseConfig.ProjectId`, and `Firebase:ProjectId`.
+1. The Smart-X Firebase project is already set in `SmartX.Client/FirebaseConfig.cs` and `SmartX.Api/appsettings.json` (`smart-x-741d7`). Sign-in uses a user created under Authentication → Users.
 2. Launch the app and sign in with that Firebase email and password.
 3. The home page shows three modules. **Sensor Data Ingestion and Telemetry** and **Real-Time Command Stream and History** are active. **Network Topology and Mesh Routing** stays greyed out for the final PoE.
 4. Register a sensor with an IEEE MAC (`A4:CF:12:01:AA:01`) or a unique id (`SX-NODE01`), or import `samples/devices.txt` from the command stream page.
 5. Open the command stream to watch sparklines, filter by category or alert state, start or stop a pump, toggle a relay, and undo the last override.
-6. Suggested Actions appear after the same pump is started twice while a moisture reading is below 20, and immediately for disconnected devices or out-of-range readings.
+6. Suggested actions appear in two ways. Searching for `Pump A` twice with **Find**, while a moisture reading from the last five minutes is below 20, suggests starting that pump. Starting the same pump twice while moisture is below 20 does the same. Disconnected devices and out-of-range readings are highlighted before you search.
 
 ## Testing the queues and dictionaries
 

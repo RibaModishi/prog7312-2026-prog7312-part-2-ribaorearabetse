@@ -71,8 +71,8 @@
 
                 <Border Style="{StaticResource PillarCard}" Padding="18,16">
                     <VerticalStackLayout Spacing="8">
-                        <Label Text="WORTH A LOOK" Style="{StaticResource SectionLabel}" />
-                        <Label Text="What the system noticed" Style="{StaticResource PillarTitle}" />
+                        <Label Text="SUGGESTED ACTIONS" Style="{StaticResource SectionLabel}" />
+                        <Label Text="Automated Insights" Style="{StaticResource PillarTitle}" />
                         <VerticalStackLayout x:Name="SuggestionsLayout" Spacing="8" />
                         <Button Text="Undo the last command"
                                 Style="{StaticResource SecondaryButton}"
@@ -125,6 +125,8 @@
                                    FontSize="16"
                                    TextColor="{StaticResource SmartXTextPrimary}" />
                             <Label Text="{Binding Place}" Style="{StaticResource PillarDescription}" />
+                            <Label Text="Timeline, oldest to newest"
+                                   Style="{StaticResource FieldHint}" />
                             <HorizontalStackLayout BindableLayout.ItemsSource="{Binding Bars}"
                                                    Spacing="4"
                                                    HeightRequest="36"
